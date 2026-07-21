@@ -1,0 +1,32 @@
+{
+  "parent": "minecraft:recipes/root",
+  "criteria": {
+    "has_deepslate_biome_ore": {
+      "conditions": {
+        "items": [
+          {
+            "items": "biomegetter:deepslate_biome_ore"
+          }
+        ]
+      },
+      "trigger": "minecraft:inventory_changed"
+    },
+    "has_the_recipe": {
+      "conditions": {
+        "recipe": "biomegetter:biome_block_from_blasting_deepslate_biome_ore"
+      },
+      "trigger": "minecraft:recipe_unlocked"
+    }
+  },
+  "requirements": [
+    [
+      "has_the_recipe",
+      "has_deepslate_biome_ore"
+    ]
+  ],
+  "rewards": {
+    "recipes": [
+      "biomegetter:biome_block_from_blasting_deepslate_biome_ore"
+    ]
+  }
+}

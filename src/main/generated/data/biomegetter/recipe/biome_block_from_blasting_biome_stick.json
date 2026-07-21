@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:blasting",
+  "category": "blocks",
+  "cookingtime": 100,
+  "experience": 0.25,
+  "group": "biomes_smelting",
+  "ingredient": "biomegetter:biome_stick",
+  "result": {
+    "id": "biomegetter:biome_block"
+  }
+}

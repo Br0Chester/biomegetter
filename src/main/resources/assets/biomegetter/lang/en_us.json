@@ -1,0 +1,11 @@
+{
+  "item.biomegetter.biome_stick": "Biome stick",
+  "item.biomegetter.biome_stick_2": "Biome stick 2",
+  "item.biomegetter.wand": "Wand",
+  "block.biomegetter.biome_block": "Biome block",
+  "block.biomegetter.raw_biome_block": "Biome's raw block",
+  "block.biomegetter.biome_ore": "11",
+  "block.biomegetter.deepslate_biome_ore": ":3",
+  "creativemodetab.biomegetter.biomes_stick": "Biome getter items",
+  "creativemodetab.biomegetter.biomes_blocks": "BG blocks"
+}

@@ -1,0 +1,11 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "category": "misc",
+  "ingredients": [
+    "biomegetter:biome_block"
+  ],
+  "result": {
+    "count": 9,
+    "id": "biomegetter:biome_stick_2"
+  }
+}

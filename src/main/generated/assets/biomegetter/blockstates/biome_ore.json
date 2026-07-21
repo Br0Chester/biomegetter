@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "": {
+      "model": "biomegetter:block/biome_ore"
+    }
+  }
+}
