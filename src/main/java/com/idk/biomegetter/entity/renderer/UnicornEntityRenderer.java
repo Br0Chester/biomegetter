@@ -10,7 +10,7 @@ import net.minecraft.client.renderer.entity.MobRenderer;
 import net.minecraft.resources.Identifier;
 
 public class UnicornEntityRenderer extends MobRenderer<UnicornEntity, UnicornEntityRendererState, UnicornEntityModel> {
-    private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(BiomeGetter.MOD_ID, "textures/entity/mini_golem.png");
+    private static final Identifier TEXTURE = Identifier.fromNamespaceAndPath(BiomeGetter.MOD_ID, "textures/entity/unicorn.png");
 
     public UnicornEntityRenderer(EntityRendererProvider.Context context) {
         super(context, new UnicornEntityModel(context.bakeLayer(ModEntityModelLayers.UNICORN)), 0.375f); // 0.375 shadow radius

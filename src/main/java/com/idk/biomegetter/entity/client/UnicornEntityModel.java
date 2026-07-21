@@ -45,33 +45,33 @@ public class UnicornEntityModel extends EntityModel<UnicornEntityRendererState> 
     public UnicornEntityModel(ModelPart root) {
         super(root);
         this.F_leg_L = root.getChild("F_leg_L");
-        this.f_l_l_1 = root.getChild("f_l_l_1");
-        this.f_l_l_2 = root.getChild("f_l_l_2");
-        this.f_l_l_3 = root.getChild("f_l_l_3");
+        this.f_l_l_1 = F_leg_L.getChild("f_l_l_1");
+        this.f_l_l_2 = f_l_l_1.getChild("f_l_l_2");
+        this.f_l_l_3 = f_l_l_2.getChild("f_l_l_3");
         this.F_leg_R = root.getChild("F_leg_R");
-        this.f_l_r_1 = root.getChild("f_l_r_1");
-        this.f_l_r_2 = root.getChild("f_l_r_2");
-        this.f_l_r_3 = root.getChild("f_l_r_3");
+        this.f_l_r_1 = F_leg_R.getChild("f_l_r_1");
+        this.f_l_r_2 = f_l_r_1.getChild("f_l_r_2");
+        this.f_l_r_3 = f_l_r_2.getChild("f_l_r_3");
         this.Body = root.getChild("Body");
-        this.Tail = root.getChild("Tail");
-        this.tail_1 = root.getChild("tail_1");
-        this.tail_2 = root.getChild("tail_2");
-        this.tail_3 = root.getChild("tail_3");
-        this.tail_brush = root.getChild("tail_brush");
+        this.Tail = Body.getChild("Tail");
+        this.tail_1 = Tail.getChild("tail_1");
+        this.tail_2 = tail_1.getChild("tail_2");
+        this.tail_3 = tail_2.getChild("tail_3");
+        this.tail_brush = tail_3.getChild("tail_brush");
         this.B_leg_R = root.getChild("B_leg_R");
-        this.b_l_r_1 = root.getChild("b_l_r_1");
-        this.b_l_r_2 = root.getChild("b_l_r_2");
-        this.b_l_r_3 = root.getChild("b_l_r_3");
+        this.b_l_r_1 = B_leg_R.getChild("b_l_r_1");
+        this.b_l_r_2 = b_l_r_1.getChild("b_l_r_2");
+        this.b_l_r_3 = b_l_r_2.getChild("b_l_r_3");
         this.B_leg_L = root.getChild("B_leg_L");
-        this.b_l_l_1 = root.getChild("b_l_l_1");
-        this.b_l_l_2 = root.getChild("b_l_l_2");
-        this.b_l_l_3 = root.getChild("b_l_l_3");
+        this.b_l_l_1 = B_leg_L.getChild("b_l_l_1");
+        this.b_l_l_2 = b_l_l_1.getChild("b_l_l_2");
+        this.b_l_l_3 = b_l_l_2.getChild("b_l_l_3");
         this.neck_and_head = root.getChild("neck_and_head");
-        this.neck_1 = root.getChild("neck_1");
-        this.neck_2 = root.getChild("neck_2");
-        this.head = root.getChild("head");
-        this.mouth = root.getChild("mouth");
-        this.ears = root.getChild("ears");
+        this.neck_1 = neck_and_head.getChild("neck_1");
+        this.neck_2 = neck_1.getChild("neck_2");
+        this.head = neck_2.getChild("head");
+        this.mouth = head.getChild("mouth");
+        this.ears = head.getChild("ears");
     }
 
     public static LayerDefinition getTexturedModelData() {

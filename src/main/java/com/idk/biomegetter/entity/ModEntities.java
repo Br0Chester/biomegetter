@@ -2,6 +2,7 @@ package com.idk.biomegetter.entity;
 
 import com.idk.biomegetter.BiomeGetter;
 import com.idk.biomegetter.entity.custom.UnicornEntity;
+import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
@@ -19,9 +20,10 @@ public class ModEntities {
                     .sized(1f, 1f)
                     .fireImmune()
     );
-//    public static void registerAttributes() {
-//        FabricDefaultAttributeRegistry.register(UNICORN, UnicornEntity.createAttributes());
-//    }
+
+    public static void registerAttributes() {
+        FabricDefaultAttributeRegistry.register(UNICORN, UnicornEntity.createAttributes());
+    }
 
     public static <T extends Entity> EntityType<T> register(String name, EntityType.Builder<T> builder) {
         ResourceKey<EntityType<?>> key = ResourceKey.create(Registries.ENTITY_TYPE, Identifier.fromNamespaceAndPath(BiomeGetter.MOD_ID, name));

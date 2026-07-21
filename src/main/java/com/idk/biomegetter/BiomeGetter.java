@@ -29,6 +29,7 @@ public class BiomeGetter implements ModInitializer {
         ModBlockTagsProvider.registryModBlockTagsProvider();
         ModCreativeModeTabs.registerModCreativeModeTabs();
         ModEntities.registerModEntityTypes();
+        ModEntities.registerAttributes();
     }
 
     public static Identifier id(String path) {

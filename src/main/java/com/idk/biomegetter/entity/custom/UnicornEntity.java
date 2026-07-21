@@ -44,16 +44,16 @@ public class UnicornEntity extends Animal {
     @Override
     protected void registerGoals() {
 //        this.goalSelector.addGoal(0, new Goal());
-        this.goalSelector.addGoal(0, new TemptGoal(this, 1, Ingredient.of(Items.DIAMOND), false));
-        this.goalSelector.addGoal(1, new RandomStrollGoal(this, 1));
-        this.goalSelector.addGoal(2, new BreedGoal(this, 1.0D));
-        this.goalSelector.addGoal(4, new FollowParentGoal(this, 1.0));
+        this.goalSelector.addGoal(0, new TemptGoal(this, 0.35, Ingredient.of(Items.DIAMOND), false));
+        this.goalSelector.addGoal(1, new RandomStrollGoal(this, 0.35));
+        this.goalSelector.addGoal(2, new BreedGoal(this, 0.35));
+        this.goalSelector.addGoal(4, new FollowParentGoal(this, 0.35));
 //        this.goalSelector.addGoal(6, new WaterAvoidingRandomStrollGoal(this, 0.7));
         this.goalSelector.addGoal(7, new LookAtPlayerGoal(this, Player.class, 6.0F));
         this.goalSelector.addGoal(7, new RandomLookAroundGoal(this));
     }
 
-    public static AttributeSupplier.Builder createCubeAttributes() {
+    public static AttributeSupplier.Builder createAttributes() {
         return PathfinderMob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 50)
                 .add(Attributes.TEMPT_RANGE, 10)
