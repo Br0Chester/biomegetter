@@ -173,7 +173,8 @@ public class UnicornEntityModel extends EntityModel<UnicornEntityRendererState> 
 
         return LayerDefinition.create(meshdefinition, 64, 64);
     }
-//    А я вообще ничего не понимаю
+
+    //    А я вообще ничего не понимаю
 //    @Override
 //    public void setAngles(Entity entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
 //    }

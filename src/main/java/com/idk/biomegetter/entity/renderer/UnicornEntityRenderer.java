@@ -25,4 +25,11 @@ public class UnicornEntityRenderer extends MobRenderer<UnicornEntity, UnicornEnt
     public Identifier getTextureLocation(UnicornEntityRendererState state) {
         return TEXTURE;
     }
+
+    @Override
+    public void extractRenderState(UnicornEntity entity, UnicornEntityRendererState state, float partialTick) {
+        super.extractRenderState(entity, state, partialTick);
+        state.idleAnimationState.copyFrom(entity.idleAnimationState);
+        state.walkAnimationState.copyFrom(entity.walkAnimationState);
+    }
 }

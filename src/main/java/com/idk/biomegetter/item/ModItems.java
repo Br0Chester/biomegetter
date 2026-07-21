@@ -1,6 +1,7 @@
 package com.idk.biomegetter.item;
 
 import com.idk.biomegetter.BiomeGetter;
+import com.idk.biomegetter.entity.ModEntities;
 import com.idk.biomegetter.item.custom.WandItem;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -8,6 +9,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.SpawnEggItem;
 
 import java.util.function.Function;
 
@@ -32,6 +34,11 @@ public class ModItems {
     public static final Item WAND = registerItem("wand",
             properties -> new WandItem(properties
                     .durability(32)));
+
+    public static final Item UNICORN_SPAWN_EGG = registerItem("unicorn_spawn_egg",
+            properties -> new SpawnEggItem(
+                    properties.spawnEgg(ModEntities.UNICORN)
+            ));
 
     //  Регистрация предмета в потоке
     public static Item registerItem(String name, Function<Item.Properties, Item> function) {

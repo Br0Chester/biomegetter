@@ -22,6 +22,7 @@ public class ModCreativeModeTabs {
                         output.accept(ModItems.BIOMES_STICK);
                         output.accept(ModItems.BIOMES_STICK_2);
                         output.accept(ModItems.WAND);
+                        output.accept(ModItems.UNICORN_SPAWN_EGG);
                     })
                     .build());
 

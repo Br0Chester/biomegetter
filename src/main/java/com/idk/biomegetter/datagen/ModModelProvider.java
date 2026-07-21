@@ -27,5 +27,6 @@ public class ModModelProvider extends FabricModelProvider {
         itemModelGenerators.generateFlatItem(ModItems.BIOMES_STICK, ModelTemplates.FLAT_ITEM);
         itemModelGenerators.generateFlatItem(ModItems.BIOMES_STICK_2, ModelTemplates.FLAT_ITEM);
         itemModelGenerators.generateFlatItem(ModItems.WAND, ModelTemplates.FLAT_HANDHELD_ITEM);
+        itemModelGenerators.generateFlatItem(ModItems.UNICORN_SPAWN_EGG, ModelTemplates.FLAT_HANDHELD_ITEM);
     }
 }

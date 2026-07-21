@@ -33,6 +33,7 @@ public class UnicornEntity extends Animal {
     protected SimpleContainer inventory;
 
     public final AnimationState idleAnimationState = new AnimationState();
+    public final AnimationState walkAnimationState = new AnimationState();
     private int idleAnimationTimeout = 0;
 
 
