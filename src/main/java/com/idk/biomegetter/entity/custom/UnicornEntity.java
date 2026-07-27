@@ -153,6 +153,7 @@ public class UnicornEntity extends Animal {
             undead.setTarget(target);
 
             // Добавляем в мир
+
             serverLevel.addFreshEntity(undead);
 
             // Звук
