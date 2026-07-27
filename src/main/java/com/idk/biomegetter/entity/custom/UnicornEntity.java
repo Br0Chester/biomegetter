@@ -58,12 +58,38 @@ public class UnicornEntity extends Animal {
         return PathfinderMob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 50)
                 .add(Attributes.TEMPT_RANGE, 10)
+                .add(Attributes.SCALE, 2.5f)
                 .add(Attributes.MOVEMENT_SPEED, 1f);
     }
 
     @Override
     public boolean isFood(ItemStack itemStack) {
         return false;
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (this.level().isClientSide()) {
+            this.setupAnimationStates();
+        }
+    }
+
+    private void setupAnimationStates() {
+        // Idle: проигрываем случайный "простойный" клип с паузами
+        if (this.idleAnimationTimeout <= 0) {
+            this.idleAnimationTimeout = this.random.nextInt(40) + 80;
+            this.idleAnimationState.start(this.tickCount);
+        } else {
+            --this.idleAnimationTimeout;
+        }
+
+        // Walk: включена, пока сущность физически движется
+        if (this.walkAnimation.isMoving()) {
+            this.walkAnimationState.startIfStopped(this.tickCount);
+        } else {
+            this.walkAnimationState.stop();
+        }
     }
 
     @Override

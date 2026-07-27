@@ -4,7 +4,9 @@
 
 package com.idk.biomegetter.entity.client;
 
+import com.idk.biomegetter.entity.animation.Unicorn_Animation;
 import com.idk.biomegetter.entity.state.UnicornEntityRendererState;
+import net.minecraft.client.animation.KeyframeAnimation;
 import net.minecraft.client.model.EntityModel;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.model.geom.PartPose;
@@ -42,6 +44,9 @@ public class UnicornEntityModel extends EntityModel<UnicornEntityRendererState> 
     private final ModelPart mouth;
     private final ModelPart ears;
 
+    //  Видимо, эти переменные мы обязаны тут объявлять
+    private final KeyframeAnimation walk;
+
     public UnicornEntityModel(ModelPart root) {
         super(root);
         this.F_leg_L = root.getChild("F_leg_L");
@@ -72,6 +77,9 @@ public class UnicornEntityModel extends EntityModel<UnicornEntityRendererState> 
         this.head = neck_2.getChild("head");
         this.mouth = head.getChild("mouth");
         this.ears = head.getChild("ears");
+
+//      Видимо, эти переменные мы обязаны тут объявлять
+        this.walk = Unicorn_Animation.WALK.bake(root);
     }
 
     public static LayerDefinition getTexturedModelData() {
@@ -174,18 +182,12 @@ public class UnicornEntityModel extends EntityModel<UnicornEntityRendererState> 
         return LayerDefinition.create(meshdefinition, 64, 64);
     }
 
-    //    А я вообще ничего не понимаю
-//    @Override
-//    public void setAngles(Entity entity, float limbSwing, float limbSwingAmount, float ageInTicks, float netHeadYaw, float headPitch) {
-//    }
-//
-//    @Override
-//    public void render(MatrixStack matrices, VertexConsumer vertexConsumer, int light, int overlay, float red, float green, float blue, float alpha) {
-//        F_leg_L.render(matrices, vertexConsumer, light, overlay, red, green, blue, alpha);
-//        F_leg_R.render(matrices, vertexConsumer, light, overlay, red, green, blue, alpha);
-//        Body.render(matrices, vertexConsumer, light, overlay, red, green, blue, alpha);
-//        B_leg_R.render(matrices, vertexConsumer, light, overlay, red, green, blue, alpha);
-//        B_leg_L.render(matrices, vertexConsumer, light, overlay, red, green, blue, alpha);
-//        neck_and_head.render(matrices, vertexConsumer, light, overlay, red, green, blue, alpha);
-//    }
+    @Override
+    public void setupAnim(UnicornEntityRendererState state) {
+        super.setupAnim(state);
+
+        if (state.walkAnimationState.isStarted()) {
+            this.walk.apply(state.walkAnimationState, state.ageInTicks);
+        }
+    }
 }

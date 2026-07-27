@@ -17,7 +17,7 @@ public class ModEntities {
     public static final EntityType<UnicornEntity> UNICORN = register(
             "unicorn",
             EntityType.Builder.<UnicornEntity>of(UnicornEntity::new, MobCategory.MISC)
-                    .sized(1f, 1f)
+                    .sized(2.5f, 2.5f)
                     .fireImmune()
     );
 
