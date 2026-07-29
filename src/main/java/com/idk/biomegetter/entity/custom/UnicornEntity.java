@@ -1,6 +1,7 @@
 package com.idk.biomegetter.entity.custom;
 
 import com.idk.biomegetter.entity.ModEntities;
+import com.idk.biomegetter.entity.effect.SummonEffects;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -20,10 +21,7 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import org.jspecify.annotations.Nullable;
 
-import java.util.EnumSet;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 // на вики extend PathfinderMob
 // Но Animals уже водержит его в себе
@@ -36,6 +34,8 @@ public class UnicornEntity extends Animal {
     }
 
     private final Map<UUID, Integer> minionTimers = new HashMap<>();
+    private int summonCooldown = 0;
+    private static final int MINION_LIFETIME_TICKS = 200; // 10 секунд × 20 тиков
 
     protected SimpleContainer inventory;
 
@@ -74,7 +74,6 @@ public class UnicornEntity extends Animal {
 
     static class UnicornSummonUndeadGoal extends Goal {
         private final UnicornEntity unicorn;
-        private int cooldown = 0;
 
         public UnicornSummonUndeadGoal(UnicornEntity unicorn) {
             this.unicorn = unicorn;
@@ -83,13 +82,17 @@ public class UnicornEntity extends Animal {
 
         @Override
         public boolean canUse() {
-            return this.unicorn.getTarget() != null && this.cooldown <= 0;
+            return this.unicorn.getTarget() != null && this.unicorn.summonCooldown <= 0;
         }
 
         @Override
         public void start() {
-            this.cooldown = 80 + this.unicorn.getRandom().nextInt(40); // 4–6 секунд
-            this.spawnLightningEffect((this.unicorn.level() instanceof ServerLevel serverLevel) ? serverLevel : null, this.unicorn.getX(), this.unicorn.getY(), this.unicorn.getZ());
+            this.unicorn.summonCooldown = 80 + this.unicorn.getRandom().nextInt(40); // 4–6 секунд
+
+            if (this.unicorn.level() instanceof ServerLevel serverLevel) {
+                SummonEffects.playLightningCast(serverLevel, this.unicorn.getX(), this.unicorn.getY(), this.unicorn.getZ());
+            }
+
             for (int i = 0; i < 5; i++) {
                 this.summonUndead();
             }
@@ -97,23 +100,9 @@ public class UnicornEntity extends Animal {
 
         @Override
         public void tick() {
-            if (this.cooldown > 0) {
-                --this.cooldown;
+            if (this.unicorn.summonCooldown > 0) {
+                --this.unicorn.summonCooldown;
             }
-        }
-
-        private void spawnLightningEffect(ServerLevel level, double x, double y, double z) {
-            // Визуальный удар молнии (без реального урона)
-            LightningBolt lightning = EntityType.LIGHTNING_BOLT.create(level, EntitySpawnReason.TRIGGERED);
-            if (lightning != null) {
-                lightning.setPos(x, y, z);
-                lightning.setVisualOnly(true);          // только визуал, без урона и огня
-                level.addFreshEntity(lightning);
-            }
-
-            // Звук + частицы для красоты
-            level.playSound(null, x, y, z, SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.WEATHER, 2.0F, 1.0F);
-            level.playSound(null, x, y, z, SoundEvents.LIGHTNING_BOLT_IMPACT, SoundSource.WEATHER, 1.0F, 1.0F);
         }
 
         private void summonUndead() {
@@ -122,11 +111,12 @@ public class UnicornEntity extends Animal {
             LivingEntity target = this.unicorn.getTarget();
             if (target == null) return;
 
-            // Случайный тип нежити
+            // Случайный тип нежити — используем свои "союзные" подтипы,
+            // а не ванильные, чтобы иметь контроль над таргетингом/лутом/визуалом
             EntityType<? extends Mob> type = switch (this.unicorn.getRandom().nextInt(3)) {
-                case 0 -> EntityType.ZOMBIE;
-                case 1 -> EntityType.SKELETON;
-                default -> EntityType.WITHER_SKELETON;
+                case 0 -> ModEntities.ALLY_ZOMBIE;
+                case 1 -> ModEntities.ALLY_SKELETON;
+                default -> ModEntities.ALLY_WITHER_SKELETON;
             };
 
             // Создание сущности (новый API 1.21+)
@@ -183,6 +173,37 @@ public class UnicornEntity extends Animal {
         super.tick();
         if (this.level().isClientSide()) {
             this.setupAnimationStates();
+        } else {
+            this.tickSummonCooldown();
+            this.tickMinionLifetimes();
+        }
+    }
+
+    private void tickSummonCooldown() {
+        if (this.summonCooldown > 0) {
+            --this.summonCooldown;
+        }
+    }
+
+    private void tickMinionLifetimes() {
+        if (this.minionTimers.isEmpty() || !(this.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+
+        Iterator<Map.Entry<UUID, Integer>> iterator = this.minionTimers.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<UUID, Integer> entry = iterator.next();
+            int ticksLeft = entry.getValue() - 1;
+
+            if (ticksLeft <= 0) {
+                Entity minion = serverLevel.getEntity(entry.getKey());
+                if (minion != null) {
+                    minion.discard(); // discard(), а не kill() — без смерти/лута/звука смерти
+                }
+                iterator.remove();
+            } else {
+                entry.setValue(ticksLeft);
+            }
         }
     }
 

@@ -2,6 +2,9 @@ package com.idk.biomegetter.entity;
 
 import com.idk.biomegetter.BiomeGetter;
 import com.idk.biomegetter.entity.custom.UnicornEntity;
+import com.idk.biomegetter.entity.custom.ally.AllySkeletonEntity;
+import com.idk.biomegetter.entity.custom.ally.AllyWitherSkeletonEntity;
+import com.idk.biomegetter.entity.custom.ally.AllyZombieEntity;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -11,6 +14,8 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.monster.skeleton.AbstractSkeleton;
+import net.minecraft.world.entity.monster.zombie.Zombie;
 
 public class ModEntities {
 
@@ -21,8 +26,29 @@ public class ModEntities {
                     .fireImmune()
     );
 
+    public static final EntityType<AllyZombieEntity> ALLY_ZOMBIE = register(
+            "ally_zombie",
+            EntityType.Builder.<AllyZombieEntity>of(AllyZombieEntity::new, MobCategory.MONSTER)
+                    .sized(0.6f, 1.95f)
+    );
+
+    public static final EntityType<AllySkeletonEntity> ALLY_SKELETON = register(
+            "ally_skeleton",
+            EntityType.Builder.<AllySkeletonEntity>of(AllySkeletonEntity::new, MobCategory.MONSTER)
+                    .sized(0.6f, 1.99f)
+    );
+
+    public static final EntityType<AllyWitherSkeletonEntity> ALLY_WITHER_SKELETON = register(
+            "ally_wither_skeleton",
+            EntityType.Builder.<AllyWitherSkeletonEntity>of(AllyWitherSkeletonEntity::new, MobCategory.MONSTER)
+                    .sized(0.7f, 2.4f)
+    );
+
     public static void registerAttributes() {
         FabricDefaultAttributeRegistry.register(UNICORN, UnicornEntity.createAttributes());
+        FabricDefaultAttributeRegistry.register(ALLY_ZOMBIE, Zombie.createAttributes());
+        FabricDefaultAttributeRegistry.register(ALLY_SKELETON, AbstractSkeleton.createAttributes());
+        FabricDefaultAttributeRegistry.register(ALLY_WITHER_SKELETON, AbstractSkeleton.createAttributes());
     }
 
     public static <T extends Entity> EntityType<T> register(String name, EntityType.Builder<T> builder) {
