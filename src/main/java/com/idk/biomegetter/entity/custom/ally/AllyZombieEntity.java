@@ -6,6 +6,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.zombie.Zombie;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
 public class AllyZombieEntity extends Zombie implements SummonedAlly {
 
@@ -27,18 +29,18 @@ public class AllyZombieEntity extends Zombie implements SummonedAlly {
             this.lifetime.tick();
         }
     }
-//
-//    @Override
-//    public void addAdditionalSaveData(CompoundTag tag) {
-//        super.addAdditionalSaveData(tag);
-//        this.lifetime.save(tag);
-//    }
-//
-//    @Override
-//    public void readAdditionalSaveData(CompoundTag tag) {
-//        super.readAdditionalSaveData(tag);
-//        this.lifetime.load(tag);
-//    }
+
+    @Override
+    protected void addAdditionalSaveData(ValueOutput output) {
+        super.addAdditionalSaveData(output);
+        this.lifetime.save(output);   // нужно будет поменять и в AllyLifetime
+    }
+
+    @Override
+    protected void readAdditionalSaveData(ValueInput input) {
+        super.readAdditionalSaveData(input);
+        this.lifetime.load(input);    // нужно будет поменять и в AllyLifetime
+    }
 
     @Override
     public boolean canAttack(LivingEntity target) {

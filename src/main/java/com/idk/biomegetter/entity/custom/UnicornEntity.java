@@ -28,7 +28,7 @@ import org.jspecify.annotations.Nullable;
 import java.util.*;
 
 // на вики extend PathfinderMob
-// Но Animals уже водержит его в себе
+// Но Animals уже содержит его в себе
 public class UnicornEntity extends Animal {
 
     //    Почему мы повторились дважды?

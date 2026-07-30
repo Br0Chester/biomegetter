@@ -1,9 +1,10 @@
 package com.idk.biomegetter.entity.custom.ally;
 
 import com.idk.biomegetter.entity.effect.SummonEffects;
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
 /**
  * Инкапсулирует ограниченное время жизни союзного существа: обратный отсчёт,
@@ -49,13 +50,11 @@ public final class AllyLifetime {
         this.owner.discard();
     }
 
-    public void save(CompoundTag tag) {
-        tag.putInt(NBT_KEY, this.ticksLeft);
+    public void save(ValueOutput output) {
+        output.putInt(NBT_KEY, this.ticksLeft);
     }
 
-    public void load(CompoundTag tag) {
-        if (tag.contains(NBT_KEY)) {
-            this.ticksLeft = tag.getInt(NBT_KEY).orElse(0);
-        }
+    public void load(ValueInput input) {
+        this.ticksLeft = input.getIntOr(NBT_KEY, 0);
     }
 }

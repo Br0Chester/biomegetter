@@ -6,6 +6,8 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.skeleton.Skeleton;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
 public class AllySkeletonEntity extends Skeleton implements SummonedAlly {
 
@@ -26,6 +28,18 @@ public class AllySkeletonEntity extends Skeleton implements SummonedAlly {
         if (!this.level().isClientSide()) {
             this.lifetime.tick();
         }
+    }
+
+    @Override
+    protected void addAdditionalSaveData(ValueOutput output) {
+        super.addAdditionalSaveData(output);
+        this.lifetime.save(output);   // нужно будет поменять и в AllyLifetime
+    }
+
+    @Override
+    protected void readAdditionalSaveData(ValueInput input) {
+        super.readAdditionalSaveData(input);
+        this.lifetime.load(input);    // нужно будет поменять и в AllyLifetime
     }
 
     @Override
