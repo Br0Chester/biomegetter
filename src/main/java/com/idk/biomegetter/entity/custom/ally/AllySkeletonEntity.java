@@ -7,10 +7,25 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.monster.skeleton.Skeleton;
 import net.minecraft.world.level.Level;
 
-public class AllySkeletonEntity extends Skeleton {
+public class AllySkeletonEntity extends Skeleton implements SummonedAlly {
+
+    private final AllyLifetime lifetime = new AllyLifetime(this);
 
     public AllySkeletonEntity(EntityType<? extends Skeleton> type, Level level) {
         super(type, level);
+    }
+
+    @Override
+    public void setLifetimeTicks(int ticks) {
+        this.lifetime.set(ticks);
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        if (!this.level().isClientSide()) {
+            this.lifetime.tick();
+        }
     }
 
     @Override
