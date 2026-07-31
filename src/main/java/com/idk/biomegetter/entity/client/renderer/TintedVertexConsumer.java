@@ -1,6 +1,8 @@
 package com.idk.biomegetter.entity.client.renderer;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.util.ARGB;
+
 
 /**
  * Обёртка над VertexConsumer, умножающая цвет и альфу каждой отправленной вершины
@@ -24,46 +26,58 @@ public class TintedVertexConsumer implements VertexConsumer {
 
     @Override
     public VertexConsumer addVertex(float x, float y, float z) {
-        return this.delegate.addVertex(x, y, z);
+        this.delegate.addVertex(x, y, z);
+        return this;
     }
 
     @Override
     public VertexConsumer setColor(int r, int g, int b, int a) {
-        return this.delegate.setColor(
+        this.delegate.setColor(
                 (int) (r * this.tintR),
                 (int) (g * this.tintG),
                 (int) (b * this.tintB),
                 (int) (a * this.tintA)
         );
+        return this;
     }
 
     @Override
     public VertexConsumer setColor(int color) {
-        return null;
+        int r = (int) (ARGB.red(color) * this.tintR);
+        int g = (int) (ARGB.green(color) * this.tintG);
+        int b = (int) (ARGB.blue(color) * this.tintB);
+        int a = (int) (ARGB.alpha(color) * this.tintA);
+        this.delegate.setColor(ARGB.color(a, r, g, b));
+        return this;
     }
 
     @Override
     public VertexConsumer setUv(float u, float v) {
-        return this.delegate.setUv(u, v);
+        this.delegate.setUv(u, v);
+        return this;
     }
 
     @Override
     public VertexConsumer setUv1(int u, int v) {
-        return this.delegate.setUv1(u, v);
+        this.delegate.setUv1(u, v);
+        return this;
     }
 
     @Override
     public VertexConsumer setUv2(int u, int v) {
-        return this.delegate.setUv2(u, v);
+        this.delegate.setUv2(u, v);
+        return this;
     }
 
     @Override
     public VertexConsumer setNormal(float x, float y, float z) {
-        return this.delegate.setNormal(x, y, z);
+        this.delegate.setNormal(x, y, z);
+        return this;
     }
 
     @Override
     public VertexConsumer setLineWidth(float width) {
-        return null;
+        this.delegate.setLineWidth(width);
+        return this;
     }
 }

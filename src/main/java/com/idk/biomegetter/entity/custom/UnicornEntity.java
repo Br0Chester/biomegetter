@@ -22,6 +22,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
@@ -36,6 +38,8 @@ public class UnicornEntity extends Animal {
     public UnicornEntity(Level level) {
         this(ModEntities.UNICORN, level);
     }
+
+    private static final String NBT_SUMMON_COOLDOWN = "SummonCooldown";
 
     private final Set<UUID> minions = new HashSet<>();
     private int summonCooldown = 0;
@@ -218,11 +222,11 @@ public class UnicornEntity extends Animal {
         @Override
         public void start() {
             Player player = this.unicorn.alertPlayer;
-            if (player == null) {
+            if (player == null || !(this.unicorn.level() instanceof ServerLevel serverLevel)) {
                 return;
             }
 
-            player.hurt(this.unicorn.damageSources().mobAttack(this.unicorn), 4.0F);
+            player.hurtServer(serverLevel, this.unicorn.damageSources().mobAttack(this.unicorn), 4.0F);
 
             Vec3 knockback = player.position().subtract(this.unicorn.position()).normalize().scale(1.6);
             player.setDeltaMovement(player.getDeltaMovement().add(knockback.x, 0.5, knockback.z));
@@ -240,6 +244,20 @@ public class UnicornEntity extends Animal {
                 .add(Attributes.SCALE, 2.5f)
                 .add(Attributes.MOVEMENT_SPEED, 1f)
                 .add(Attributes.ATTACK_DAMAGE, 6.0);
+    }
+
+
+    //    Функции сохранения при выходе из мира
+    @Override
+    protected void addAdditionalSaveData(ValueOutput output) {
+        super.addAdditionalSaveData(output);
+        output.putInt(NBT_SUMMON_COOLDOWN, this.summonCooldown);
+    }
+
+    @Override
+    protected void readAdditionalSaveData(ValueInput input) {
+        super.readAdditionalSaveData(input);
+        this.summonCooldown = input.getIntOr(NBT_SUMMON_COOLDOWN, 0);
     }
 
     /**
