@@ -62,7 +62,7 @@ public class UnicornEntity extends Animal {
     private Player alertPlayer;
     private int warningStrikeCooldown = 0;
 
-    private static final double ALERT_RADIUS = 10.0;
+    private static final double ALERT_RADIUS = 15.0;
     private static final double STRIKE_RADIUS = 2.0;
 
     protected SimpleContainer inventory;
@@ -79,21 +79,39 @@ public class UnicornEntity extends Animal {
 
     @Override
     protected void registerGoals() {
-        // Боевые голы — таргетинг для них полностью управляется updateCombatState(),
-        // отдельные targetSelector-голы больше не нужны (единый источник истины).
         this.goalSelector.addGoal(0, new TemptGoal(this, 0.35, Ingredient.of(Items.DIAMOND), false));
-        this.goalSelector.addGoal(1, new UnicornSummonUndeadGoal(this));
-        this.goalSelector.addGoal(1, new UnicornExplosiveShotGoal(this));
-        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.2, true));
-        this.goalSelector.addGoal(2, new UnicornWarningStrikeGoal(this));
-        this.goalSelector.addGoal(3, new UnicornDashGoal(this));
-        this.goalSelector.addGoal(4, new BreedGoal(this, 0.35));
-        this.goalSelector.addGoal(5, new FollowParentGoal(this, 0.35));
-        this.goalSelector.addGoal(6, new EatBlockGoal(this));
-        this.goalSelector.addGoal(7, new RandomStrollGoal(this, 0.35));
-        this.goalSelector.addGoal(8, new UnicornWatchThreatGoal(this));
-        this.goalSelector.addGoal(9, new LookAtPlayerGoal(this, Player.class, 6.0F));
-        this.goalSelector.addGoal(9, new RandomLookAroundGoal(this));
+        this.goalSelector.addGoal(1, new UnicornSummonUndeadGoal(this));   // открывашка боя: призыв
+        this.goalSelector.addGoal(2, new UnicornExplosiveShotGoal(this));  // приоритет — стрельба на дистанции
+        this.goalSelector.addGoal(3, new UnicornDashGoal(this));           // враг подошёл близко — рывок сквозь цель
+        this.goalSelector.addGoal(4, new UnicornWarningStrikeGoal(this));  // только для ALERT, не пересекается с боем
+        this.goalSelector.addGoal(5, new UnicornMeleeAttackGoal(this, 1.2, true)); // аварийный вариант без маны
+        this.goalSelector.addGoal(6, new BreedGoal(this, 0.35));
+        this.goalSelector.addGoal(7, new FollowParentGoal(this, 0.35));
+        this.goalSelector.addGoal(8, new EatBlockGoal(this));
+        this.goalSelector.addGoal(9, new RandomStrollGoal(this, 0.35));
+        this.goalSelector.addGoal(10, new UnicornWatchThreatGoal(this));
+        this.goalSelector.addGoal(11, new LookAtPlayerGoal(this, Player.class, 6.0F));
+        this.goalSelector.addGoal(11, new RandomLookAroundGoal(this));
+    }
+
+    private static class UnicornMeleeAttackGoal extends MeleeAttackGoal {
+        private final UnicornEntity unicorn;
+
+        UnicornMeleeAttackGoal(UnicornEntity unicorn, double speedModifier, boolean followingTargetEvenIfNotSeen) {
+            super(unicorn, speedModifier, followingTargetEvenIfNotSeen);
+            this.unicorn = unicorn;
+        }
+
+        @Override
+        public boolean canUse() {
+            // Ближний бой — аварийный вариант, когда маны не хватает даже на рывок
+            return super.canUse() && !this.unicorn.manaPool.canAfford(UnicornDashGoal.MANA_COST);
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return super.canContinueToUse() && !this.unicorn.manaPool.canAfford(UnicornDashGoal.MANA_COST);
+        }
     }
 
     static class UnicornSummonUndeadGoal extends Goal {
@@ -256,7 +274,7 @@ public class UnicornEntity extends Animal {
         private static final double MAX_RANGE = 7.0;
         private static final int WINDUP_TICKS = 15;     // ~0.75 сек предупреждения
         private static final int COOLDOWN_TICKS = 100;  // 5 сек
-        private static final double MANA_COST = 20.0;
+        static final double MANA_COST = 20.0;
         private static final double DASH_SPEED_PER_TICK = 0.9;
 
         private final UnicornEntity unicorn;
@@ -370,7 +388,7 @@ public class UnicornEntity extends Animal {
 
     private static class UnicornExplosiveShotGoal extends Goal {
         private static final double MIN_RANGE = 7.0;
-        private static final double MAX_RANGE = 10.0;
+        private static final double MAX_RANGE = 25.0;
         private static final double SAFETY_RADIUS = 4.0; // радиус взрыва (3) + запас
         private static final int WINDUP_TICKS = 20; // 1 секунда
         private static final int COOLDOWN_TICKS = 100;
@@ -382,7 +400,7 @@ public class UnicornEntity extends Animal {
 
         UnicornExplosiveShotGoal(UnicornEntity unicorn) {
             this.unicorn = unicorn;
-            this.setFlags(EnumSet.of(Flag.LOOK));
+            this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
         }
 
         @Override
@@ -463,6 +481,7 @@ public class UnicornEntity extends Animal {
                 .add(Attributes.MOVEMENT_SPEED, 1f)
                 .add(Attributes.ATTACK_DAMAGE, 6.0)
                 .add(ModAttributes.MAX_MANA, 100.0)
+                .add(Attributes.FOLLOW_RANGE, 25)
                 .add(ModAttributes.MANA_REGENERATION, 5.0);
     }
 
@@ -489,6 +508,10 @@ public class UnicornEntity extends Animal {
      */
     private void updateCombatState() {
         if (!(this.level() instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        if (this.isBaby()) {
+            this.enterNeutral(); // детёныш не участвует в бою вообще — ни одна боевая способность не активируется
             return;
         }
 
@@ -687,6 +710,7 @@ public class UnicornEntity extends Animal {
     public float getAgeScale() {
         return this.isBaby() ? 0.4F : 1.0F;
     }
+
 
     //  Я думаю, эти методы можно сразу унаследовать
     public final int getInventorySize() {

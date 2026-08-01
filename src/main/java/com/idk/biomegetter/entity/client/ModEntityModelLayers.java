@@ -7,6 +7,7 @@ import net.minecraft.resources.Identifier;
 
 public class ModEntityModelLayers {
     public static final ModelLayerLocation UNICORN = createMain("unicorn");
+    public static final ModelLayerLocation UNICORN_BABY = createMain("unicorn_baby");
 
     public static ModelLayerLocation createMain(String name) {
         return new ModelLayerLocation(Identifier.fromNamespaceAndPath(BiomeGetter.MOD_ID, name), "main");
@@ -14,5 +15,6 @@ public class ModEntityModelLayers {
 
     public static void registerModelLayers() {
         ModelLayerRegistry.registerModelLayer(ModEntityModelLayers.UNICORN, UnicornEntityModel::getTexturedModelData);
+        ModelLayerRegistry.registerModelLayer(ModEntityModelLayers.UNICORN_BABY, BabyUnicornEntityModel::getTexturedModelData);
     }
 }
