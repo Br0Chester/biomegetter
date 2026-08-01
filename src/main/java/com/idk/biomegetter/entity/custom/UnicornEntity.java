@@ -1,10 +1,15 @@
 package com.idk.biomegetter.entity.custom;
 
+import com.idk.biomegetter.entity.ModAttributes;
 import com.idk.biomegetter.entity.ModEntities;
+import com.idk.biomegetter.entity.custom.ally.AllyMobs;
 import com.idk.biomegetter.entity.custom.ally.SummonedAlly;
+import com.idk.biomegetter.entity.custom.mana.ManaPool;
+import com.idk.biomegetter.entity.custom.projectile.UnicornBoltEntity;
 import com.idk.biomegetter.entity.custom.state.UnicornCombatState;
 import com.idk.biomegetter.entity.custom.util.CombatUtils;
 import com.idk.biomegetter.entity.effect.SummonEffects;
+import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -24,6 +29,7 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
@@ -38,6 +44,13 @@ public class UnicornEntity extends Animal {
     public UnicornEntity(Level level) {
         this(ModEntities.UNICORN, level);
     }
+
+    private final ManaPool manaPool = new ManaPool(this);
+
+    private int explosiveShotCooldown = 0;
+
+    private int dashCooldown = 0;
+    boolean isDashing = false; // package-private: читается голом, влияет на fall damage
 
     private static final String NBT_SUMMON_COOLDOWN = "SummonCooldown";
 
@@ -69,9 +82,11 @@ public class UnicornEntity extends Animal {
         // Боевые голы — таргетинг для них полностью управляется updateCombatState(),
         // отдельные targetSelector-голы больше не нужны (единый источник истины).
         this.goalSelector.addGoal(0, new TemptGoal(this, 0.35, Ingredient.of(Items.DIAMOND), false));
-        this.goalSelector.addGoal(1, new MeleeAttackGoal(this, 1.2, true));
+        this.goalSelector.addGoal(1, new UnicornSummonUndeadGoal(this));
+        this.goalSelector.addGoal(1, new UnicornExplosiveShotGoal(this));
+        this.goalSelector.addGoal(2, new MeleeAttackGoal(this, 1.2, true));
         this.goalSelector.addGoal(2, new UnicornWarningStrikeGoal(this));
-        this.goalSelector.addGoal(3, new UnicornSummonUndeadGoal(this));
+        this.goalSelector.addGoal(3, new UnicornDashGoal(this));
         this.goalSelector.addGoal(4, new BreedGoal(this, 0.35));
         this.goalSelector.addGoal(5, new FollowParentGoal(this, 0.35));
         this.goalSelector.addGoal(6, new EatBlockGoal(this));
@@ -236,6 +251,209 @@ public class UnicornEntity extends Animal {
         }
     }
 
+    private static class UnicornDashGoal extends Goal {
+        private static final double MIN_RANGE = 3.0;
+        private static final double MAX_RANGE = 7.0;
+        private static final int WINDUP_TICKS = 15;     // ~0.75 сек предупреждения
+        private static final int COOLDOWN_TICKS = 100;  // 5 сек
+        private static final double MANA_COST = 20.0;
+        private static final double DASH_SPEED_PER_TICK = 0.9;
+
+        private final UnicornEntity unicorn;
+        private int windupTicksLeft;
+        private int dashTicksLeft;
+        private Vec3 dashDirection = Vec3.ZERO;
+
+        UnicornDashGoal(UnicornEntity unicorn) {
+            this.unicorn = unicorn;
+            this.setFlags(EnumSet.of(Flag.MOVE, Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            LivingEntity target = this.unicorn.getTarget();
+            if (this.unicorn.combatState != UnicornCombatState.COMBAT || target == null || !target.isAlive()) {
+                return false;
+            }
+            if (this.unicorn.dashCooldown > 0 || !this.unicorn.manaPool.canAfford(MANA_COST)) {
+                return false;
+            }
+            double distSqr = this.unicorn.distanceToSqr(target);
+            return distSqr >= MIN_RANGE * MIN_RANGE && distSqr <= MAX_RANGE * MAX_RANGE;
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return this.windupTicksLeft > 0 || this.dashTicksLeft > 0;
+        }
+
+        @Override
+        public void start() {
+            this.windupTicksLeft = WINDUP_TICKS;
+            this.dashTicksLeft = 0;
+            if (this.unicorn.level() instanceof ServerLevel serverLevel) {
+                SummonEffects.playLightningCast(serverLevel, this.unicorn.getX(), this.unicorn.getY(), this.unicorn.getZ());
+            }
+        }
+
+        @Override
+        public void stop() {
+            this.unicorn.isDashing = false;
+            this.unicorn.setDeltaMovement(Vec3.ZERO);
+            this.unicorn.resetFallDistance();
+        }
+
+        @Override
+        public void tick() {
+            LivingEntity target = this.unicorn.getTarget();
+
+            if (this.windupTicksLeft > 0) {
+                if (target != null) {
+                    this.unicorn.getLookControl().setLookAt(target);
+                }
+                --this.windupTicksLeft;
+                if (this.windupTicksLeft == 0) {
+                    this.beginDash(target);
+                }
+                return;
+            }
+
+            if (this.dashTicksLeft > 0) {
+                this.unicorn.isDashing = true;
+                this.unicorn.setDeltaMovement(this.dashDirection);
+                this.unicorn.hurtMarked = true;
+                this.unicorn.resetFallDistance();
+                --this.dashTicksLeft;
+
+                for (LivingEntity nearby : this.unicorn.level().getEntitiesOfClass(
+                        LivingEntity.class,
+                        this.unicorn.getBoundingBox().inflate(0.6),
+                        entity -> entity != this.unicorn && AllyMobs.isValidTarget(entity)
+                )) {
+                    this.hitTarget(nearby);
+                    this.dashTicksLeft = 0;
+                    break;
+                }
+
+                if (this.dashTicksLeft == 0) {
+                    this.unicorn.isDashing = false;
+                    this.unicorn.setDeltaMovement(Vec3.ZERO);
+                    this.unicorn.dashCooldown = COOLDOWN_TICKS;
+                }
+            }
+        }
+
+        private void beginDash(LivingEntity target) {
+            if (target == null || !this.unicorn.manaPool.trySpend(MANA_COST)) {
+                this.dashTicksLeft = 0;
+                this.unicorn.dashCooldown = COOLDOWN_TICKS;
+                return;
+            }
+
+            Vec3 diff = target.position().subtract(this.unicorn.position());
+            Vec3 direction = new Vec3(diff.x, 0.0, diff.z).normalize();
+            this.dashDirection = direction.scale(DASH_SPEED_PER_TICK);
+
+            double distance = Math.min(MAX_RANGE, this.unicorn.distanceTo(target));
+            this.dashTicksLeft = (int) Math.ceil(distance / DASH_SPEED_PER_TICK);
+        }
+
+        private void hitTarget(LivingEntity target) {
+            if (this.unicorn.level() instanceof ServerLevel serverLevel) {
+                target.hurtServer(serverLevel, this.unicorn.damageSources().mobAttack(this.unicorn), 8.0F);
+            }
+            Vec3 knockback = target.position().subtract(this.unicorn.position()).normalize().scale(2.2);
+            target.setDeltaMovement(target.getDeltaMovement().add(knockback.x, 0.6, knockback.z));
+            target.hurtMarked = true;
+        }
+    }
+
+    private static class UnicornExplosiveShotGoal extends Goal {
+        private static final double MIN_RANGE = 7.0;
+        private static final double MAX_RANGE = 10.0;
+        private static final double SAFETY_RADIUS = 4.0; // радиус взрыва (3) + запас
+        private static final int WINDUP_TICKS = 20; // 1 секунда
+        private static final int COOLDOWN_TICKS = 100;
+        private static final double MANA_COST = 25.0;
+
+        private final UnicornEntity unicorn;
+        private int windupTicksLeft;
+        private BlockPos targetBlock;
+
+        UnicornExplosiveShotGoal(UnicornEntity unicorn) {
+            this.unicorn = unicorn;
+            this.setFlags(EnumSet.of(Flag.LOOK));
+        }
+
+        @Override
+        public boolean canUse() {
+            LivingEntity target = this.unicorn.getTarget();
+            if (this.unicorn.combatState != UnicornCombatState.COMBAT || target == null || !target.isAlive()) {
+                return false;
+            }
+            if (this.unicorn.explosiveShotCooldown > 0 || !this.unicorn.manaPool.canAfford(MANA_COST)) {
+                return false;
+            }
+            double distSqr = this.unicorn.distanceToSqr(target);
+            if (distSqr < MIN_RANGE * MIN_RANGE || distSqr > MAX_RANGE * MAX_RANGE) {
+                return false;
+            }
+            return this.isSafeToFire(target.blockPosition());
+        }
+
+        private boolean isSafeToFire(BlockPos target) {
+            if (!(this.unicorn.level() instanceof ServerLevel serverLevel)) {
+                return false;
+            }
+            AABB dangerZone = new AABB(target).inflate(SAFETY_RADIUS);
+            return serverLevel.getEntitiesOfClass(UnicornEntity.class, dangerZone).isEmpty();
+        }
+
+        @Override
+        public boolean canContinueToUse() {
+            return this.windupTicksLeft > 0;
+        }
+
+        @Override
+        public void start() {
+            LivingEntity target = this.unicorn.getTarget();
+            this.targetBlock = target != null ? target.blockPosition() : null;
+            this.windupTicksLeft = WINDUP_TICKS;
+            if (this.unicorn.level() instanceof ServerLevel serverLevel) {
+                SummonEffects.playLightningCast(serverLevel, this.unicorn.getX(), this.unicorn.getY(), this.unicorn.getZ());
+            }
+        }
+
+        @Override
+        public void tick() {
+            LivingEntity target = this.unicorn.getTarget();
+            if (target != null) {
+                this.unicorn.getLookControl().setLookAt(target);
+            }
+
+            --this.windupTicksLeft;
+            if (this.windupTicksLeft <= 0) {
+                this.fire();
+            }
+        }
+
+        private void fire() {
+            this.unicorn.explosiveShotCooldown = COOLDOWN_TICKS;
+
+            if (this.targetBlock == null || !(this.unicorn.level() instanceof ServerLevel serverLevel)
+                    || !this.isSafeToFire(this.targetBlock) || !this.unicorn.manaPool.trySpend(MANA_COST)) {
+                return; // условия изменились за время задержки — тихо отменяем
+            }
+
+            UnicornBoltEntity bolt = new UnicornBoltEntity(ModEntities.UNICORN_BOLT, serverLevel);
+            bolt.setOwner(this.unicorn);
+            bolt.setPos(this.unicorn.getX(), this.unicorn.getEyeY(), this.unicorn.getZ());
+            bolt.shootTowards(Vec3.atCenterOf(this.targetBlock));
+
+            serverLevel.addFreshEntity(bolt);
+        }
+    }
+
 
     public static AttributeSupplier.Builder createAttributes() {
         return PathfinderMob.createMobAttributes()
@@ -243,7 +461,9 @@ public class UnicornEntity extends Animal {
                 .add(Attributes.TEMPT_RANGE, 10)
                 .add(Attributes.SCALE, 2.5f)
                 .add(Attributes.MOVEMENT_SPEED, 1f)
-                .add(Attributes.ATTACK_DAMAGE, 6.0);
+                .add(Attributes.ATTACK_DAMAGE, 6.0)
+                .add(ModAttributes.MAX_MANA, 100.0)
+                .add(ModAttributes.MANA_REGENERATION, 5.0);
     }
 
 
@@ -251,12 +471,14 @@ public class UnicornEntity extends Animal {
     @Override
     protected void addAdditionalSaveData(ValueOutput output) {
         super.addAdditionalSaveData(output);
+        this.manaPool.save(output);
         output.putInt(NBT_SUMMON_COOLDOWN, this.summonCooldown);
     }
 
     @Override
     protected void readAdditionalSaveData(ValueInput input) {
         super.readAdditionalSaveData(input);
+        this.manaPool.load(input);
         this.summonCooldown = input.getIntOr(NBT_SUMMON_COOLDOWN, 0);
     }
 
@@ -365,6 +587,14 @@ public class UnicornEntity extends Animal {
         return false;
     }
 
+    /**
+     * ГЛАВНЫЙ ТИК СУЩНОСТИ (не гола!). Вызывается движком каждый тик для самого юникорна.
+     * Все "глобальные" механики юникорна (кулдауны, регенерация маны, состояние боя)
+     * подключаются именно сюда, а не в tick() отдельных Goal-классов ниже по файлу —
+     * у Goal.tick() своя, другая роль: он выполняется только пока конкретный гол активен
+     * (см. UnicornSummonUndeadGoal.tick() ниже — тот декрементирует кулдаун только пока
+     * гол "запущен", что вообще другая история и другой смысл).
+     */
     @Override
     public void tick() {
         super.tick();
@@ -373,8 +603,23 @@ public class UnicornEntity extends Animal {
         } else {
             this.tickSummonCooldown();
             this.tickWarningStrikeCooldown();
+            this.tickDashCooldown();
+            this.tickExplosiveShotCooldown();
+            this.manaPool.tick();
             this.updateCombatState();
             this.syncMinionTargets();
+        }
+    }
+
+    private void tickDashCooldown() {
+        if (this.dashCooldown > 0) {
+            --this.dashCooldown;
+        }
+    }
+
+    private void tickExplosiveShotCooldown() {
+        if (this.explosiveShotCooldown > 0) {
+            --this.explosiveShotCooldown;
         }
     }
 
@@ -432,9 +677,15 @@ public class UnicornEntity extends Animal {
         }
     }
 
+
     @Override
     public @Nullable AgeableMob getBreedOffspring(ServerLevel level, AgeableMob partner) {
-        return null;
+        return ModEntities.UNICORN.create(level, EntitySpawnReason.BREEDING);
+    }
+
+    @Override
+    public float getAgeScale() {
+        return this.isBaby() ? 0.4F : 1.0F;
     }
 
     //  Я думаю, эти методы можно сразу унаследовать

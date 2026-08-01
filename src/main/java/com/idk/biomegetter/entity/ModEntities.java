@@ -5,6 +5,7 @@ import com.idk.biomegetter.entity.custom.UnicornEntity;
 import com.idk.biomegetter.entity.custom.ally.AllySkeletonEntity;
 import com.idk.biomegetter.entity.custom.ally.AllyWitherSkeletonEntity;
 import com.idk.biomegetter.entity.custom.ally.AllyZombieEntity;
+import com.idk.biomegetter.entity.custom.projectile.UnicornBoltEntity;
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricDefaultAttributeRegistry;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -42,6 +43,13 @@ public class ModEntities {
             "ally_wither_skeleton",
             EntityType.Builder.<AllyWitherSkeletonEntity>of(AllyWitherSkeletonEntity::new, MobCategory.MONSTER)
                     .sized(0.7f, 2.4f)
+    );
+
+    public static final EntityType<UnicornBoltEntity> UNICORN_BOLT = register(
+            "unicorn_bolt",
+            EntityType.Builder.<UnicornBoltEntity>of(UnicornBoltEntity::new, MobCategory.MISC)
+                    .sized(0.3f, 0.3f)
+                    .noSave()
     );
 
     public static void registerAttributes() {
