@@ -40,6 +40,8 @@ public class ModItems {
                     properties.spawnEgg(ModEntities.UNICORN)
             ));
 
+    public static final Item MEAL = registerItem("meal", Item::new);
+
     //  Регистрация предмета в потоке
     public static Item registerItem(String name, Function<Item.Properties, Item> function) {
         return Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BiomeGetter.MOD_ID, name),
