@@ -13,11 +13,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class GrindstoneMenuMixin {
 
     /**
-     * Добавляет рецепт "пшеница -> мука" (1 к 1) через точильный камень,
-     * не трогая ванильное поведение слияния прочности/зачарований —
-     * срабатывает только когда во втором слоте (ADDITIONAL_SLOT) пусто,
-     * а в первом (INPUT_SLOT) лежит пшеница, то есть ванильный сценарий
-     * ремонта двух предметов этот случай в принципе не покрывает.
+     * Добавляет рецепт "пшеница -> мука" (1 к 1) через точильный камень.
+     * Срабатывает только если во втором слоте пусто, а в первом — пшеница,
+     * что не пересекается с ванильным сценарием ремонта (два предмета).
      */
     @Inject(method = "computeResult", at = @At("HEAD"), cancellable = true)
     private void biomegetter$grindWheatIntoMeal(ItemStack input, ItemStack additional, CallbackInfoReturnable<ItemStack> cir) {
