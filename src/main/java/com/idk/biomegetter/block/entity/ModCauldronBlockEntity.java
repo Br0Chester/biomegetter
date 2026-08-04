@@ -16,9 +16,22 @@ public class ModCauldronBlockEntity extends BlockEntity {
 
     public static final int EVAPORATION_INTERVAL_TICKS = 600; // 30 секунд
 
+    public enum Content {
+        EMPTY, WATER, LAVA, MILK, JUICE
+    }
+
     private boolean hasBlockAbove;
     private boolean heatedBelow;
     private int evaporationTimer = EVAPORATION_INTERVAL_TICKS;
+    private Content content = Content.EMPTY;
+
+    public Content getContent() {
+        return this.content;
+    }
+
+    public void setContent(Content content) {
+        this.content = content;
+    }
 
     public ModCauldronBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -61,6 +74,7 @@ public class ModCauldronBlockEntity extends BlockEntity {
         output.putBoolean("HasBlockAbove", this.hasBlockAbove);
         output.putBoolean("HeatedBelow", this.heatedBelow);
         output.putInt("EvaporationTimer", this.evaporationTimer);
+        output.putString("Content", this.content.name());
     }
 
     @Override
@@ -69,5 +83,6 @@ public class ModCauldronBlockEntity extends BlockEntity {
         this.hasBlockAbove = input.getBooleanOr("HasBlockAbove", false);
         this.heatedBelow = input.getBooleanOr("HeatedBelow", false);
         this.evaporationTimer = input.getIntOr("EvaporationTimer", EVAPORATION_INTERVAL_TICKS);
+        this.content = Content.valueOf(input.getStringOr("Content", Content.EMPTY.name()));
     }
 }

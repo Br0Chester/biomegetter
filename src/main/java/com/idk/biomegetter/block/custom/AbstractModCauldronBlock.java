@@ -41,7 +41,7 @@ public abstract class AbstractModCauldronBlock extends LayeredCauldronBlock impl
     /**
      * Наследник решает, "жидкое" ли сейчас содержимое (кипятится/испаряется) — например, пустой котёл не кипит.
      */
-    protected abstract boolean isBoilable(BlockState state);
+    protected abstract boolean isBoilable(BlockState state, ModCauldronBlockEntity blockEntity);
 
     /**
      * Урон при нахождении в кипящем содержимом — переопределяемо под конкретный тип.
@@ -78,7 +78,7 @@ public abstract class AbstractModCauldronBlock extends LayeredCauldronBlock impl
     ) {
         super.entityInside(state, level, pos, entity, effectApplier, isPrecise); // сохраняем ванильное тушение огня и т.п.
 
-        if (this.isBoilable(state) && level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron && cauldron.isHeatedBelow()) {
+        if (level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron && this.isBoilable(state, cauldron) && cauldron.isHeatedBelow()) {
             if (level instanceof ServerLevel serverLevel) {
                 DamageSource source = level.damageSources().hotFloor();
                 entity.hurtServer(serverLevel, source, this.getBoilingDamage());
@@ -88,7 +88,7 @@ public abstract class AbstractModCauldronBlock extends LayeredCauldronBlock impl
 
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
-        if (this.isBoilable(state) && level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron && cauldron.isHeatedBelow()) {
+        if (level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron && this.isBoilable(state, cauldron) && cauldron.isHeatedBelow()) {
             double x = pos.getX() + 0.5;
             double y = pos.getY() + 0.9;
             double z = pos.getZ() + 0.5;
@@ -113,7 +113,7 @@ public abstract class AbstractModCauldronBlock extends LayeredCauldronBlock impl
     }
 
     private void serverTick(Level level, BlockPos pos, BlockState state, ModCauldronBlockEntity cauldron) {
-        if (!this.isBoilable(state) || !cauldron.isHeatedBelow() || cauldron.hasBlockAbove()) {
+        if (!this.isBoilable(state, cauldron) || !cauldron.isHeatedBelow() || cauldron.hasBlockAbove()) {
             return; // не кипит либо накрыто сверху — испарение не идёт, лишней работы не делаем
         }
         if (cauldron.tickEvaporation()) {
