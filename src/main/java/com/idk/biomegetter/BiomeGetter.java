@@ -1,5 +1,6 @@
 package com.idk.biomegetter;
 
+import com.idk.biomegetter.block.ModBlockEntities;
 import com.idk.biomegetter.block.ModBlocks;
 import com.idk.biomegetter.creativemodetab.ModCreativeModeTabs;
 import com.idk.biomegetter.datagen.ModBlockTagsProvider;
@@ -26,6 +27,7 @@ public class BiomeGetter implements ModInitializer {
 
         ModItems.registerModItems();
         ModBlocks.registerModBlocks();
+        ModBlockEntities.registerModBlockEntities();
         ModBlockTagsProvider.registryModBlockTagsProvider();
         ModCreativeModeTabs.registerModCreativeModeTabs();
         ModEntities.registerModEntityTypes();

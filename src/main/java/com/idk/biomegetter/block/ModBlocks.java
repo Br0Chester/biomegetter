@@ -53,6 +53,12 @@ public class ModBlocks {
                 new BlockItem(block, new Item.Properties().useBlockDescriptionPrefix()
                         .setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(BiomeGetter.MOD_ID, name)))));
     }
+    
+    public static final Block WATER_CAULDRON = registerBlock("water_cauldron",
+            properties -> new com.idk.biomegetter.block.custom.ModWaterCauldronBlock(properties
+                    .strength(2f)
+                    .sound(SoundType.LANTERN)
+                    .noOcclusion()));
 
     public static void registerModBlocks() {
         BiomeGetter.LOGGER.info("Registered Mod Blocks for " + BiomeGetter.MOD_ID);
