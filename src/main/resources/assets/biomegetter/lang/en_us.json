@@ -8,6 +8,7 @@
   "block.biomegetter.raw_biome_block": "Biome's raw block",
   "block.biomegetter.biome_ore": "11",
   "block.biomegetter.deepslate_biome_ore": ":3",
+  "block.biomegetter.water_cauldron": "Water cauldron",
   "creativemodetab.biomegetter.biomes_stick": "Biome getter items",
   "creativemodetab.biomegetter.biomes_blocks": "BG blocks"
 }

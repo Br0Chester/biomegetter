@@ -27,6 +27,7 @@ public class ModLootTableProvider extends FabricBlockLootSubProvider {
     public void generate() {
         dropSelf(ModBlocks.BIOME_BLOCK);
         dropSelf(ModBlocks.RAW_BIOME_BLOCK);
+        dropSelf(ModBlocks.WATER_CAULDRON);
 
         add(ModBlocks.BIOME_ORE, createOreDrop(ModBlocks.BIOME_ORE, ModItems.BIOMES_STICK));
         add(ModBlocks.DEEPSLATE_BIOME_ORE, createMultipleOreDrops(ModBlocks.DEEPSLATE_BIOME_ORE, ModItems.BIOMES_STICK_2, 1, 8));
