@@ -4,6 +4,7 @@ import com.idk.biomegetter.block.ModBlockEntities;
 import com.idk.biomegetter.block.entity.ModCauldronBlockEntity;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.cauldron.CauldronInteraction;
+import net.minecraft.core.cauldron.CauldronInteractions;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
@@ -66,8 +67,23 @@ public class ModWaterCauldronBlock extends AbstractModCauldronBlock {
                 return InteractionResult.SUCCESS;
             }
         }
+        if (item == Items.GLASS_BOTTLE && content == ModCauldronBlockEntity.Content.WATER) {
+            int currentLevel = state.getValue(BlockStateProperties.LEVEL_CAULDRON);
+            if (!level.isClientSide()) {
+                if (currentLevel <= 1) {
+                    cauldron.setContent(ModCauldronBlockEntity.Content.EMPTY);
+                    level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LEVEL_CAULDRON, 1));
+                } else {
+                    level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LEVEL_CAULDRON, currentLevel - 1));
+                }
+                swapItem(player, hand, itemStack, new ItemStack(Items.POTION));
+            }
+            return InteractionResult.SUCCESS;
+        }
 
-        return InteractionResult.TRY_WITH_EMPTY_HAND;
+//        ВРОДЕ БЫ ПОФИКСИЛО ТУПИЗМ КОТЛА
+//        return InteractionResult.TRY_WITH_EMPTY_HAND;
+        return CauldronInteractions.WATER.get(itemStack).interact(state, level, pos, player, hand, itemStack);
     }
 
     private static InteractionResult fillWith(
