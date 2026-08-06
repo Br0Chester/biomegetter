@@ -10,6 +10,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.InsideBlockEffectApplier;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
@@ -20,7 +21,11 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.redstone.Orientation;
+import net.minecraft.world.phys.shapes.Shapes;
+import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -29,6 +34,7 @@ import org.jspecify.annotations.Nullable;
  * кипение и его последствия (урон, испарение). Конкретное содержимое — в наследниках.
  */
 public abstract class AbstractModCauldronBlock extends LayeredCauldronBlock implements EntityBlock {
+    public static final BooleanProperty EMPTY = BooleanProperty.create("empty");
 
     protected AbstractModCauldronBlock(
             Properties properties,
@@ -36,6 +42,7 @@ public abstract class AbstractModCauldronBlock extends LayeredCauldronBlock impl
             CauldronInteraction.Dispatcher interactions
     ) {
         super(precipitationType, interactions, properties);
+        this.registerDefaultState(this.stateDefinition.any().setValue(EMPTY, true));
     }
 
     /**
@@ -97,6 +104,20 @@ public abstract class AbstractModCauldronBlock extends LayeredCauldronBlock impl
                 level.addParticle(ParticleTypes.DRIPPING_WATER, x + random.nextDouble() * 0.6 - 0.3, y + 0.2, z + random.nextDouble() * 0.6 - 0.3, 0.0, 0.0, 0.0);
             }
         }
+    }
+
+    @Override
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
+        super.createBlockStateDefinition(builder); // добавляет LEVEL (из LayeredCauldronBlock)
+        builder.add(EMPTY);
+    }
+
+    @Override
+    protected VoxelShape getEntityInsideCollisionShape(BlockState state, BlockGetter level, BlockPos pos, Entity entity) {
+        if (state.getValue(EMPTY)) {
+            return Shapes.empty();
+        }
+        return super.getEntityInsideCollisionShape(state, level, pos, entity);
     }
 
     @Nullable

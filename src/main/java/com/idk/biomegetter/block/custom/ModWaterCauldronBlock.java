@@ -61,7 +61,7 @@ public class ModWaterCauldronBlock extends AbstractModCauldronBlock {
             if (!filled.isEmpty()) {
                 if (!level.isClientSide()) {
                     cauldron.setContent(ModCauldronBlockEntity.Content.EMPTY);
-                    level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LEVEL_CAULDRON, 1));
+                    level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LEVEL_CAULDRON, 1).setValue(EMPTY, true));
                     swapItem(player, hand, itemStack, filled);
                 }
                 return InteractionResult.SUCCESS;
@@ -72,7 +72,7 @@ public class ModWaterCauldronBlock extends AbstractModCauldronBlock {
             if (!level.isClientSide()) {
                 if (currentLevel <= 1) {
                     cauldron.setContent(ModCauldronBlockEntity.Content.EMPTY);
-                    level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LEVEL_CAULDRON, 1));
+                    level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LEVEL_CAULDRON, 1).setValue(EMPTY, true));
                 } else {
                     level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LEVEL_CAULDRON, currentLevel - 1));
                 }
@@ -92,7 +92,7 @@ public class ModWaterCauldronBlock extends AbstractModCauldronBlock {
     ) {
         if (!level.isClientSide()) {
             cauldron.setContent(newContent);
-            level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LEVEL_CAULDRON, 3));
+            level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LEVEL_CAULDRON, 3).setValue(EMPTY, false));
             swapItem(player, hand, itemInHand, new ItemStack(Items.BUCKET));
         }
         return InteractionResult.SUCCESS;
@@ -119,7 +119,7 @@ public class ModWaterCauldronBlock extends AbstractModCauldronBlock {
         int currentLevel = state.getValue(BlockStateProperties.LEVEL_CAULDRON);
         if (currentLevel <= 1) {
             blockEntity.setContent(ModCauldronBlockEntity.Content.EMPTY);
-            level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LEVEL_CAULDRON, 1));
+            level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LEVEL_CAULDRON, 1).setValue(EMPTY, true));
         } else {
             level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LEVEL_CAULDRON, currentLevel - 1));
         }

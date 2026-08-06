@@ -19,4 +19,5 @@ public class ModBlockEntities {
     public static void registerModBlockEntities() {
         BiomeGetter.LOGGER.info("Registered Mod Block Entities for " + BiomeGetter.MOD_ID);
     }
+    
 }
