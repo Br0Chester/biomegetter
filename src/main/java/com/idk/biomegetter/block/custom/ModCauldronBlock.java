@@ -268,6 +268,12 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
             return;
         }
         CauldronContentType type = CauldronContentTypes.get(content);
+        // Таяние содержимого котла (например, рыхлого снега) при нагреве — не зависит от того, накрыт ли котёл сверху
+        if (type.meltsIntoWhenHeated() != null && cauldron.isHeatedBelow() && cauldron.tickEvaporation()) {
+            level.setBlockAndUpdate(pos, state.setValue(CONTENT, type.meltsIntoWhenHeated()));
+            return;
+        }
+
         if (!type.evaporates() || !cauldron.isHeatedBelow() || cauldron.hasBlockAbove()) {
             return;
         }

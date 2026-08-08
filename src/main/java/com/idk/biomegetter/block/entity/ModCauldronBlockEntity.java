@@ -20,7 +20,7 @@ public class ModCauldronBlockEntity extends BlockEntity {
     private int meltTimer = MELT_INTERVAL_TICKS;
 
     public enum Content implements StringRepresentable {
-        EMPTY("empty"), WATER("water"), LAVA("lava"), MILK("milk"), JUICE("juice");
+        EMPTY("empty"), WATER("water"), LAVA("lava"), POWDER_SNOW("powder_snow"), MILK("milk"), JUICE("juice");
 
         private final String name;
 

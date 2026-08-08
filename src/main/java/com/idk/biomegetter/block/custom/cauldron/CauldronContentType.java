@@ -1,9 +1,11 @@
 package com.idk.biomegetter.block.custom.cauldron;
 
 import com.idk.biomegetter.block.entity.ModCauldronBlockEntity;
+import com.idk.biomegetter.block.entity.ModCauldronBlockEntity.Content;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.item.Item;
+import org.jspecify.annotations.Nullable;
 
 public record CauldronContentType(
         ModCauldronBlockEntity.Content id,
@@ -17,7 +19,8 @@ public record CauldronContentType(
         boolean requiresHeatToDamage,   // true = как вода (дамажит только при кипении), false = как лава (всегда)
         float damageAmount,
         SoundEvent fillSound,
-        SoundEvent emptySound
+        SoundEvent emptySound,
+        @Nullable Content meltsIntoWhenHeated // null = не тает
 ) {
     public Identifier modelForLevel(int level) {
         return switch (level) {
