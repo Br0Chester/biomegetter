@@ -1,7 +1,7 @@
 package com.idk.biomegetter.block.custom.cauldron;
 
 import com.idk.biomegetter.block.entity.ModCauldronBlockEntity.Content;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.Items;
 
@@ -17,28 +17,28 @@ public final class CauldronContentTypes {
             Content.WATER, Items.WATER_BUCKET,
             id("water_cauldron_level1"), id("water_cauldron_level2"), id("water_cauldron_full"),
             -1, true, true, true, 2.0F,
-            SoundEvents.BUCKET_EMPTY.value(), SoundEvents.BUCKET_FILL.value()
+            SoundEvents.BUCKET_EMPTY, SoundEvents.BUCKET_FILL
     ));
 
     public static final CauldronContentType LAVA = register(new CauldronContentType(
             Content.LAVA, Items.LAVA_BUCKET,
             id("lava_cauldron"), id("lava_cauldron"), id("lava_cauldron"), // у лавы нет уровней — всегда "полная"
             -1, false, true, false, 4.0F,
-            SoundEvents.BUCKET_EMPTY_LAVA.value(), SoundEvents.BUCKET_FILL_LAVA.value()
+            SoundEvents.BUCKET_EMPTY_LAVA, SoundEvents.BUCKET_FILL_LAVA
     ));
 
     public static final CauldronContentType MILK = register(new CauldronContentType(
             Content.MILK, Items.MILK_BUCKET,
             id("water_cauldron_level1"), id("water_cauldron_level2"), id("water_cauldron_full"), // геометрия как у воды
             0xFFFFFF, true, false, false, 0.0F,
-            SoundEvents.BUCKET_EMPTY.value(), SoundEvents.BUCKET_FILL.value()
+            SoundEvents.BUCKET_EMPTY, SoundEvents.BUCKET_FILL
     ));
 
     public static final CauldronContentType JUICE = register(new CauldronContentType(
             Content.JUICE, null, // наполняется только ягодами, не ведром
             id("water_cauldron_level1"), id("water_cauldron_level2"), id("water_cauldron_full"),
             0xB0202A, true, false, false, 0.0F,
-            SoundEvents.BUCKET_EMPTY.value(), SoundEvents.BUCKET_FILL.value()
+            SoundEvents.BUCKET_EMPTY, SoundEvents.BUCKET_FILL
     ));
 
     private static CauldronContentType register(CauldronContentType type) {
@@ -54,7 +54,7 @@ public final class CauldronContentTypes {
         return REGISTRY.values();
     }
 
-    private static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath("minecraft", "block/" + path);
+    private static Identifier id(String path) {
+        return Identifier.fromNamespaceAndPath("minecraft", "block/" + path);
     }
 }

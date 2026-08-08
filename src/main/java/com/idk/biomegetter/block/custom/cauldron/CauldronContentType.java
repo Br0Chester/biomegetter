@@ -1,16 +1,16 @@
 package com.idk.biomegetter.block.custom.cauldron;
 
 import com.idk.biomegetter.block.entity.ModCauldronBlockEntity;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.item.Item;
 
 public record CauldronContentType(
         ModCauldronBlockEntity.Content id,
         Item fillBucket,               // null, если ведром не наполняется (например, сок — только ягодами)
-        ResourceLocation level1Model,
-        ResourceLocation level2Model,
-        ResourceLocation level3Model,
+        Identifier level1Model,
+        Identifier level2Model,
+        Identifier level3Model,
         int tintColor,                  // -1 = биомный цвет воды, иначе фиксированный ARGB
         boolean evaporates,
         boolean damagesEntities,
@@ -19,7 +19,7 @@ public record CauldronContentType(
         SoundEvent fillSound,
         SoundEvent emptySound
 ) {
-    public ResourceLocation modelForLevel(int level) {
+    public Identifier modelForLevel(int level) {
         return switch (level) {
             case 1 -> this.level1Model;
             case 2 -> this.level2Model;
