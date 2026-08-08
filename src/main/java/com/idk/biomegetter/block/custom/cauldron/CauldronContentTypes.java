@@ -23,7 +23,7 @@ public final class CauldronContentTypes {
 
     public static final CauldronContentType LAVA = register(new CauldronContentType(
             Content.LAVA, Items.LAVA_BUCKET,
-            id("lava_cauldron"), id("lava_cauldron"), id("lava_cauldron"), // у лавы нет уровней — всегда "полная"
+            id("lava_cauldron"), id("lava_cauldron"), id("lava_cauldron"),
             -1, false, true, false, 4.0F,
             SoundEvents.BUCKET_EMPTY_LAVA, SoundEvents.BUCKET_FILL_LAVA,
             null
@@ -31,22 +31,22 @@ public final class CauldronContentTypes {
 
     public static final CauldronContentType POWDER_SNOW = register(new CauldronContentType(
             Content.POWDER_SNOW, Items.POWDER_SNOW_BUCKET,
-            id("powder_snow_cauldron"), id("powder_snow_cauldron"), id("powder_snow_cauldron"), // у снега тоже нет уровней, как у лавы
+            id("powder_snow_cauldron"), id("powder_snow_cauldron"), id("powder_snow_cauldron"),
             -1, false, false, false, 0.0F,
             SoundEvents.BUCKET_EMPTY_POWDER_SNOW, SoundEvents.BUCKET_FILL_POWDER_SNOW,
-            Content.WATER // ← тает в воду
+            Content.WATER
     ));
 
     public static final CauldronContentType MILK = register(new CauldronContentType(
             Content.MILK, Items.MILK_BUCKET,
-            id("biomegetter:block/milk_cauldron_level1"), id("biomegetter:block/milk_cauldron_level2"), id("biomegetter:block/milk_cauldron_full"), // геометрия как у воды
+            ourId("milk_cauldron_level1"), ourId("milk_cauldron_level2"), ourId("milk_cauldron_full"),
             0xFFFFFF, true, false, false, 0.0F,
             SoundEvents.BUCKET_EMPTY, SoundEvents.BUCKET_FILL,
             null
     ));
 
     public static final CauldronContentType JUICE = register(new CauldronContentType(
-            Content.JUICE, null, // наполняется только ягодами, не ведром
+            Content.JUICE, null,
             id("water_cauldron_level1"), id("water_cauldron_level2"), id("water_cauldron_full"),
             0xB0202A, true, false, false, 0.0F,
             SoundEvents.BUCKET_EMPTY, SoundEvents.BUCKET_FILL,
@@ -68,5 +68,9 @@ public final class CauldronContentTypes {
 
     private static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath("minecraft", "block/" + path);
+    }
+
+    private static Identifier ourId(String path) {
+        return Identifier.fromNamespaceAndPath("biomegetter", "block/" + path);
     }
 }
