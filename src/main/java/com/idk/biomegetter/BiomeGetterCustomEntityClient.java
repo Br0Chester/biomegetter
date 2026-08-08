@@ -28,7 +28,7 @@ public class BiomeGetterCustomEntityClient implements ClientModInitializer {
         EntityRenderers.register(ModEntities.UNICORN_BOLT, UnicornBoltRenderer::new);
 
         BlockEntityRenderers.register(ModBlockEntities.CAULDRON, ModCauldronBlockEntityRenderer::new);
-
+        
     }
 
 }

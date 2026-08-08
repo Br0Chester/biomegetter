@@ -120,7 +120,8 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
         // 1. Пустое ведро — забрать содержимое
         if (item == Items.BUCKET && content != Content.EMPTY) {
             CauldronContentType type = CauldronContentTypes.get(content);
-            if (type.fillBucket() != null) {
+            // Общее правило для ЛЮБОЙ жидкости: ведро = ровно 3/3, забрать его можно только из полного котла
+            if (type.fillBucket() != null && state.getValue(BlockStateProperties.LEVEL_CAULDRON) == 3) {
                 if (!level.isClientSide()) {
                     level.setBlockAndUpdate(pos, state.setValue(CONTENT, Content.EMPTY).setValue(BlockStateProperties.LEVEL_CAULDRON, 1));
                     level.playSound(null, pos, type.emptySound(), SoundSource.BLOCKS, 1.0F, 1.0F);
@@ -229,7 +230,9 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
     public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock, @Nullable Orientation orientation, boolean movedByPiston) {
         super.neighborChanged(state, level, pos, neighborBlock, orientation, movedByPiston);
         if (level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron) {
-            cauldron.setHasBlockAbove(!level.getBlockState(pos.above()).isAir());
+            BlockState above = level.getBlockState(pos.above());
+            cauldron.setHasBlockAbove(!above.isAir());
+            cauldron.setPowderSnowAbove(above.is(Blocks.POWDER_SNOW));
             cauldron.setHeatedBelow(isHeatSource(level.getBlockState(pos.below())));
         }
     }
@@ -255,6 +258,11 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
     }
 
     private static void serverTick(Level level, BlockPos pos, BlockState state, ModCauldronBlockEntity cauldron) {
+        // Таяние рыхлого снега сверху — независимо от того, что внутри котла
+        if (cauldron.isHeatedBelow() && cauldron.isPowderSnowAbove() && cauldron.tickMelt()) {
+            level.setBlockAndUpdate(pos.above(), Blocks.WATER.defaultBlockState());
+        }
+
         Content content = state.getValue(CONTENT);
         if (content == Content.EMPTY) {
             return;

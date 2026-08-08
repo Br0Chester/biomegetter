@@ -14,6 +14,10 @@ import net.minecraft.world.level.block.state.BlockState;
 public class ModCauldronBlockEntity extends BlockEntity {
 
     public static final int EVAPORATION_INTERVAL_TICKS = 600; // 30 секунд
+    public static final int MELT_INTERVAL_TICKS = 600; // 30 секунд
+
+    private boolean powderSnowAbove;
+    private int meltTimer = MELT_INTERVAL_TICKS;
 
     public enum Content implements StringRepresentable {
         EMPTY("empty"), WATER("water"), LAVA("lava"), MILK("milk"), JUICE("juice");
@@ -33,15 +37,6 @@ public class ModCauldronBlockEntity extends BlockEntity {
     private boolean hasBlockAbove;
     private boolean heatedBelow;
     private int evaporationTimer = EVAPORATION_INTERVAL_TICKS;
-    private Content content = Content.EMPTY;
-
-    public Content getContent() {
-        return this.content;
-    }
-
-    public void setContent(Content content) {
-        this.content = content;
-    }
 
     public ModCauldronBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -76,6 +71,25 @@ public class ModCauldronBlockEntity extends BlockEntity {
 
     public void resetEvaporationTimer() {
         this.evaporationTimer = EVAPORATION_INTERVAL_TICKS;
+    }
+
+    public boolean isPowderSnowAbove() {
+        return this.powderSnowAbove;
+    }
+
+    public void setPowderSnowAbove(boolean value) {
+        this.powderSnowAbove = value;
+    }
+
+    /**
+     * @return true, если 30-секундный таймер таяния "натикал" в этом вызове
+     */
+    public boolean tickMelt() {
+        if (--this.meltTimer <= 0) {
+            this.meltTimer = MELT_INTERVAL_TICKS;
+            return true;
+        }
+        return false;
     }
 
 //    @Override
