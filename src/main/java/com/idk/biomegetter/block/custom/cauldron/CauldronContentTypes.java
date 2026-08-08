@@ -39,7 +39,7 @@ public final class CauldronContentTypes {
 
     public static final CauldronContentType MILK = register(new CauldronContentType(
             Content.MILK, Items.MILK_BUCKET,
-            id("water_cauldron_level1"), id("water_cauldron_level2"), id("water_cauldron_full"), // геометрия как у воды
+            id("biomegetter:block/milk_cauldron_level1"), id("biomegetter:block/milk_cauldron_level2"), id("biomegetter:block/milk_cauldron_full"), // геометрия как у воды
             0xFFFFFF, true, false, false, 0.0F,
             SoundEvents.BUCKET_EMPTY, SoundEvents.BUCKET_FILL,
             null
