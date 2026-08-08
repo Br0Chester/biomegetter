@@ -1,11 +1,10 @@
 package com.idk.biomegetter.block.entity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.storage.ValueInput;
-import net.minecraft.world.level.storage.ValueOutput;
 
 /**
  * Общее состояние наших котлов: осведомлённость об окружении (кэш, а не live-сканирование)
@@ -16,8 +15,19 @@ public class ModCauldronBlockEntity extends BlockEntity {
 
     public static final int EVAPORATION_INTERVAL_TICKS = 600; // 30 секунд
 
-    public enum Content {
-        EMPTY, WATER, LAVA, MILK, JUICE
+    public enum Content implements StringRepresentable {
+        EMPTY("empty"), WATER("water"), LAVA("lava"), MILK("milk"), JUICE("juice");
+
+        private final String name;
+
+        Content(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String getSerializedName() {
+            return this.name;
+        }
     }
 
     private boolean hasBlockAbove;
@@ -68,21 +78,21 @@ public class ModCauldronBlockEntity extends BlockEntity {
         this.evaporationTimer = EVAPORATION_INTERVAL_TICKS;
     }
 
-    @Override
-    protected void saveAdditional(ValueOutput output) {
-        super.saveAdditional(output);
-        output.putBoolean("HasBlockAbove", this.hasBlockAbove);
-        output.putBoolean("HeatedBelow", this.heatedBelow);
-        output.putInt("EvaporationTimer", this.evaporationTimer);
-        output.putString("Content", this.content.name());
-    }
-
-    @Override
-    protected void loadAdditional(ValueInput input) {
-        super.loadAdditional(input);
-        this.hasBlockAbove = input.getBooleanOr("HasBlockAbove", false);
-        this.heatedBelow = input.getBooleanOr("HeatedBelow", false);
-        this.evaporationTimer = input.getIntOr("EvaporationTimer", EVAPORATION_INTERVAL_TICKS);
-        this.content = Content.valueOf(input.getStringOr("Content", Content.EMPTY.name()));
-    }
+//    @Override
+//    protected void saveAdditional(ValueOutput output) {
+//        super.saveAdditional(output);
+//        output.putBoolean("HasBlockAbove", this.hasBlockAbove);
+//        output.putBoolean("HeatedBelow", this.heatedBelow);
+//        output.putInt("EvaporationTimer", this.evaporationTimer);
+//        output.putString("Content", this.content.name());
+//    }
+//
+//    @Override
+//    protected void loadAdditional(ValueInput input) {
+//        super.loadAdditional(input);
+//        this.hasBlockAbove = input.getBooleanOr("HasBlockAbove", false);
+//        this.heatedBelow = input.getBooleanOr("HeatedBelow", false);
+//        this.evaporationTimer = input.getIntOr("EvaporationTimer", EVAPORATION_INTERVAL_TICKS);
+//        this.content = Content.valueOf(input.getStringOr("Content", Content.EMPTY.name()));
+//    }
 }
