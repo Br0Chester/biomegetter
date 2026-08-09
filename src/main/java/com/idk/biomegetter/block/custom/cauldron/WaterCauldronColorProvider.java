@@ -21,18 +21,18 @@ public class WaterCauldronColorProvider implements BlockTintSource {
     public int color(BlockState state) {
         CauldronContentType type = CauldronContentTypes.get(state.getValue(ModCauldronBlock.CONTENT));
         if (type == null) {
-            return 0xFFFFFF; // пустой котёл — тонировать нечего
+            return 0xFFFFFFFF;
         }
-        return type.tintColor() == -1 ? 0x3F76E4 : type.tintColor();
+        return type.useBiomeWaterTint() ? 0xFF3F76E4 : type.tintColor();
     }
 
     @Override
     public int colorInWorld(BlockState state, BlockAndTintGetter level, BlockPos pos) {
         CauldronContentType type = CauldronContentTypes.get(state.getValue(ModCauldronBlock.CONTENT));
         if (type == null) {
-            return 0xFFFFFF;
+            return 0xFFFFFFFF;
         }
-        if (type.tintColor() == -1) {
+        if (type.useBiomeWaterTint()) {
             return BiomeColors.getAverageWaterColor(level, pos);
         }
         return type.tintColor();

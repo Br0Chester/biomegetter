@@ -16,7 +16,8 @@ public final class CauldronContentTypes {
     public static final CauldronContentType WATER = register(new CauldronContentType(
             Content.WATER, Items.WATER_BUCKET,
             id("water_cauldron_level1"), id("water_cauldron_level2"), id("water_cauldron_full"),
-            -1, true, true, true, 2.0F,
+            true, 0xFFFFFFFF, // useBiomeWaterTint=true, tintColor тут не используется
+            true, true, true, 2.0F,
             SoundEvents.BUCKET_EMPTY, SoundEvents.BUCKET_FILL,
             null
     ));
@@ -24,7 +25,8 @@ public final class CauldronContentTypes {
     public static final CauldronContentType LAVA = register(new CauldronContentType(
             Content.LAVA, Items.LAVA_BUCKET,
             id("lava_cauldron"), id("lava_cauldron"), id("lava_cauldron"),
-            0xFFFFFF, false, true, false, 4.0F,
+            false, 0xFFFFFFFF, // непрозрачный белый = без изменений цвета
+            false, true, false, 4.0F,
             SoundEvents.BUCKET_EMPTY_LAVA, SoundEvents.BUCKET_FILL_LAVA,
             null
     ));
@@ -32,7 +34,8 @@ public final class CauldronContentTypes {
     public static final CauldronContentType POWDER_SNOW = register(new CauldronContentType(
             Content.POWDER_SNOW, Items.POWDER_SNOW_BUCKET,
             id("powder_snow_cauldron"), id("powder_snow_cauldron"), id("powder_snow_cauldron"),
-            -1, false, false, false, 0.0F,
+            false, 0xFFFFFFFF,
+            false, false, false, 0.0F,
             SoundEvents.BUCKET_EMPTY_POWDER_SNOW, SoundEvents.BUCKET_FILL_POWDER_SNOW,
             Content.WATER
     ));
@@ -40,7 +43,8 @@ public final class CauldronContentTypes {
     public static final CauldronContentType MILK = register(new CauldronContentType(
             Content.MILK, Items.MILK_BUCKET,
             ourId("milk_cauldron_level1"), ourId("milk_cauldron_level2"), ourId("milk_cauldron_full"),
-            -1, true, false, false, 0.0F,
+            false, 0xFFFFFFFF, // непрозрачный белый — теперь ДЕЙСТВИТЕЛЬНО без изменений (не 0x00FFFFFF!)
+            true, false, false, 0.0F,
             SoundEvents.BUCKET_EMPTY, SoundEvents.BUCKET_FILL,
             null
     ));
@@ -48,7 +52,8 @@ public final class CauldronContentTypes {
     public static final CauldronContentType JUICE = register(new CauldronContentType(
             Content.JUICE, null,
             id("water_cauldron_level1"), id("water_cauldron_level2"), id("water_cauldron_full"),
-            0xB0202A, true, false, false, 0.0F,
+            false, 0xFFB0202A, // тоже была без альфы! добавили FF спереди
+            true, false, false, 0.0F,
             SoundEvents.BUCKET_EMPTY, SoundEvents.BUCKET_FILL,
             null
     ));
