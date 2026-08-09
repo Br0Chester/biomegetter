@@ -258,12 +258,21 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
     }
 
     private static void serverTick(Level level, BlockPos pos, BlockState state, ModCauldronBlockEntity cauldron) {
+        // Живая проверка каждый тик — подстраховка на случай, если neighborChanged не сработал
+        // (например, котёл поставили НА УЖЕ существующий блок нагрева — сосед в этот момент "не менялся",
+        // и neighborChanged в принципе не вызывается движком в такой ситуации)
+        cauldron.setHeatedBelow(isHeatSource(level.getBlockState(pos.below())));
+        BlockState above = level.getBlockState(pos.above());
+        cauldron.setHasBlockAbove(!above.isAir());
+        cauldron.setPowderSnowAbove(above.is(Blocks.POWDER_SNOW));
+
         // Таяние рыхлого снега сверху — независимо от того, что внутри котла
         if (cauldron.isHeatedBelow() && cauldron.isPowderSnowAbove() && cauldron.tickMelt()) {
             level.setBlockAndUpdate(pos.above(), Blocks.WATER.defaultBlockState());
         }
 
         Content content = state.getValue(CONTENT);
+        
         if (content == Content.EMPTY) {
             return;
         }

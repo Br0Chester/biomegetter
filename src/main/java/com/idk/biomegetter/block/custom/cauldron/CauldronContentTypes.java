@@ -24,7 +24,7 @@ public final class CauldronContentTypes {
     public static final CauldronContentType LAVA = register(new CauldronContentType(
             Content.LAVA, Items.LAVA_BUCKET,
             id("lava_cauldron"), id("lava_cauldron"), id("lava_cauldron"),
-            -1, false, true, false, 4.0F,
+            0xFFFFFF, false, true, false, 4.0F,
             SoundEvents.BUCKET_EMPTY_LAVA, SoundEvents.BUCKET_FILL_LAVA,
             null
     ));
@@ -40,7 +40,7 @@ public final class CauldronContentTypes {
     public static final CauldronContentType MILK = register(new CauldronContentType(
             Content.MILK, Items.MILK_BUCKET,
             ourId("milk_cauldron_level1"), ourId("milk_cauldron_level2"), ourId("milk_cauldron_full"),
-            0xFFFFFF, true, false, false, 0.0F,
+            -1, true, false, false, 0.0F,
             SoundEvents.BUCKET_EMPTY, SoundEvents.BUCKET_FILL,
             null
     ));
