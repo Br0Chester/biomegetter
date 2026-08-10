@@ -36,6 +36,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.EnumProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -58,13 +59,16 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
             2, level -> Shapes.or(AbstractCauldronBlock.SHAPE, Block.column(12.0, 4.0, 6.0 + (level + 1) * 3.0))
     ));
 
+    public static final IntegerProperty BERRY_LEVEL = IntegerProperty.create("berry_level", 0, 3);
+
     private static final MapCodec<ModCauldronBlock> CODEC = simpleCodec(ModCauldronBlock::new);
 
     public ModCauldronBlock(Properties properties) {
         super(properties, new CauldronInteraction.Dispatcher()); // не используется — весь интеракт свой, ниже
         this.registerDefaultState(this.stateDefinition.any()
                 .setValue(BlockStateProperties.LEVEL_CAULDRON, 1)
-                .setValue(CONTENT, Content.EMPTY));
+                .setValue(CONTENT, Content.EMPTY)
+                .setValue(BERRY_LEVEL, 0));
     }
 
     @Override
@@ -74,7 +78,7 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(BlockStateProperties.LEVEL_CAULDRON, CONTENT);
+        builder.add(BlockStateProperties.LEVEL_CAULDRON, CONTENT, BERRY_LEVEL);
     }
 
     @Override
@@ -92,8 +96,13 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
 
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        return AbstractCauldronBlock.SHAPE;
+        int berryLevel = state.getValue(BERRY_LEVEL);
+        if (berryLevel == 0) {
+            return AbstractCauldronBlock.SHAPE;
+        }
+        return Shapes.or(AbstractCauldronBlock.SHAPE, Block.column(12.0, 4.0, 6.0 + berryLevel * 3.0));
     }
+
 
     @Override
     protected VoxelShape getEntityInsideCollisionShape(BlockState state, BlockGetter level, BlockPos pos, Entity entity) {
@@ -161,6 +170,23 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
                 level.playSound(null, pos, SoundEvents.GENERIC_SPLASH, SoundSource.BLOCKS, 1.0F, 1.0F);
             }
             return InteractionResult.SUCCESS;
+        }
+
+        // 5.Наполнение сладкими ягодами
+        if (item == Items.SWEET_BERRIES) {
+            int berryLevel = state.getValue(BERRY_LEVEL);
+            Content content = state.getValue(CONTENT);
+            boolean canAddBerries = berryLevel < 3
+                    && (content == Content.EMPTY || content == Content.JUICE)
+                    && !(content == Content.JUICE && state.getValue(BlockStateProperties.LEVEL_CAULDRON) == 3);
+            if (canAddBerries) {
+                if (!level.isClientSide()) {
+                    level.setBlockAndUpdate(pos, state.setValue(BERRY_LEVEL, berryLevel + 1));
+                    level.playSound(null, pos, SoundEvents.HONEY_BLOCK_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F);
+                    itemStack.shrink(1);
+                }
+                return InteractionResult.SUCCESS;
+            }
         }
 
         return InteractionResult.TRY_WITH_EMPTY_HAND;
@@ -244,6 +270,33 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
                 || (below.getBlock() instanceof CampfireBlock && below.getValue(CampfireBlock.LIT));
     }
 
+    @Override
+    public void fallOn(Level level, BlockState state, BlockPos pos, Entity entity, double fallDistance) {
+        int berryLevel = state.getValue(BERRY_LEVEL);
+        if (berryLevel > 0 && fallDistance > 0.5) { // отсекаем обычную ходьбу, только заметное падение/прыжок
+            if (!level.isClientSide() && level instanceof ServerLevel serverLevel) {
+                int newBerryLevel = berryLevel - 1;
+                BlockState newState = state.setValue(BERRY_LEVEL, newBerryLevel);
+
+                if (newBerryLevel == 0) {
+                    Content content = state.getValue(CONTENT);
+                    int currentJuiceLevel = content == Content.JUICE ? state.getValue(BlockStateProperties.LEVEL_CAULDRON) : 0;
+                    int newJuiceLevel = Math.min(3, currentJuiceLevel + 1);
+                    newState = newState.setValue(CONTENT, Content.JUICE).setValue(BlockStateProperties.LEVEL_CAULDRON, newJuiceLevel);
+                    popResource(level, pos, new ItemStack(Items.SUGAR));
+                }
+
+                level.setBlockAndUpdate(pos, newState);
+                serverLevel.sendParticles(ParticleTypes.CRIMSON_SPORE, pos.getX() + 0.5, pos.getY() + 0.6, pos.getZ() + 0.5, 12, 0.3, 0.2, 0.3, 0.05);
+                level.playSound(null, pos, SoundEvents.HONEY_BLOCK_FALL, SoundSource.BLOCKS, 1.0F, 1.0F);
+            }
+            entity.causeFallDamage((float) fallDistance, 1.0F, entity.damageSources().fall()); // сохраняем обычный урон от падения
+            return;
+        }
+        super.fallOn(level, state, pos, entity, fallDistance);
+    }
+
+    
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
@@ -272,7 +325,7 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
         }
 
         Content content = state.getValue(CONTENT);
-        
+
         if (content == Content.EMPTY) {
             return;
         }

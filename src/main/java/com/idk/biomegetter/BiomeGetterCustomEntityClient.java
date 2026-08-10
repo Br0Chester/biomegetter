@@ -2,6 +2,7 @@ package com.idk.biomegetter;
 
 import com.idk.biomegetter.block.ModBlockEntities;
 import com.idk.biomegetter.block.ModBlocks;
+import com.idk.biomegetter.block.custom.cauldron.BerryTintProvider;
 import com.idk.biomegetter.block.custom.cauldron.WaterCauldronColorProvider;
 import com.idk.biomegetter.block.entity.renderer.ModCauldronBlockEntityRenderer;
 import com.idk.biomegetter.entity.ModEntities;
@@ -35,9 +36,10 @@ public class BiomeGetterCustomEntityClient implements ClientModInitializer {
         BlockEntityRenderers.register(ModBlockEntities.CAULDRON, ModCauldronBlockEntityRenderer::new);
 
         BlockColorRegistry.register(
-                List.of(new WaterCauldronColorProvider()),
+                List.of(new WaterCauldronColorProvider(), new BerryTintProvider()),
                 ModBlocks.WATER_CAULDRON
         );
+
     }
 
 }
