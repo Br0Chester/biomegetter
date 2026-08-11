@@ -56,7 +56,7 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
     public static final EnumProperty<Content> CONTENT = EnumProperty.create("content", Content.class);
 
     private static final VoxelShape[] FILLED_SHAPES = Util.make(() -> Block.boxes(
-            2, level -> Shapes.or(AbstractCauldronBlock.SHAPE, Block.column(12.0, 4.0, 6.0 + (level + 1) * 3.0))
+            3, level -> Shapes.or(AbstractCauldronBlock.SHAPE, Block.column(12.0, 4.0, 6.0 + (level + 1) * 3.0))
     ));
 
     public static final IntegerProperty BERRY_LEVEL = IntegerProperty.create("berry_level", 0, 3);
@@ -175,7 +175,7 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
         // 5.Наполнение сладкими ягодами
         if (item == Items.SWEET_BERRIES) {
             int berryLevel = state.getValue(BERRY_LEVEL);
-            Content content = state.getValue(CONTENT);
+//            Content content = state.getValue(CONTENT);
             boolean canAddBerries = berryLevel < 3
                     && (content == Content.EMPTY || content == Content.JUICE)
                     && !(content == Content.JUICE && state.getValue(BlockStateProperties.LEVEL_CAULDRON) == 3);
