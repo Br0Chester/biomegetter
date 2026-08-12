@@ -20,7 +20,7 @@ public class CauldronJuiceTypeLoader extends SimpleJsonResourceReloadListener<Ju
     private static Map<Identifier, JuiceType> REGISTRY = Map.of();
 
     public CauldronJuiceTypeLoader() {
-        super(JuiceType.CODEC, FileToIdConverter.json("biomegetter/juice_type"));
+        super(JuiceType.CODEC, FileToIdConverter.json("juice_type"));
     }
 
     @Override
@@ -32,6 +32,7 @@ public class CauldronJuiceTypeLoader extends SimpleJsonResourceReloadListener<Ju
     protected void apply(Map<Identifier, JuiceType> data, ResourceManager resourceManager, ProfilerFiller profiler) {
         REGISTRY = new HashMap<>(data);
         BiomeGetter.LOGGER.info("Loaded {} juice types", REGISTRY.size());
+        BiomeGetter.LOGGER.info("Raw data keys: {}", data.keySet());
     }
 
     public static JuiceType get(Identifier id) {

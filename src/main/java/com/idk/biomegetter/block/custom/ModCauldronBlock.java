@@ -154,7 +154,9 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
         for (CauldronContentType type : CauldronContentTypes.all()) {
             if (type.fillBucket() == item && (content == Content.EMPTY || content == type.id())) {
                 if (!level.isClientSide()) {
-                    level.setBlockAndUpdate(pos, state.setValue(CONTENT, type.id()).setValue(BlockStateProperties.LEVEL_CAULDRON, 3));
+                    level.setBlockAndUpdate(pos, state.setValue(CONTENT, type.id())
+                            .setValue(CONTENT, type.id())
+                            .setValue(BlockStateProperties.LEVEL_CAULDRON, 3));
                     level.playSound(null, pos, type.fillSound(), SoundSource.BLOCKS, 1.0F, 1.0F);
                     swapItem(player, hand, itemStack, new ItemStack(Items.BUCKET));
                 }
@@ -202,7 +204,7 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
             PressableSolid solid = CauldronPressableSolidLoader.getByItem(item);
             if (solid != null && cauldron.canAddSolid(solid.producesJuice())) {
                 if (!level.isClientSide()) {
-                    cauldron.addSolid(solid.producesJuice());
+                    cauldron.addSolid(solid);
                     level.playSound(null, pos, SoundEvents.HONEY_BLOCK_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F);
                     itemStack.shrink(1);
                 }

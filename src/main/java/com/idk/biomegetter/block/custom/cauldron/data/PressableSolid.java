@@ -11,12 +11,14 @@ public record PressableSolid(
         Item item,
         Identifier producesJuice,
         SoundEvent pressSound,
-        Item residueItem
+        Item residueItem,
+        Identifier solidTexture
 ) {
     public static final Codec<PressableSolid> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             BuiltInRegistries.ITEM.byNameCodec().fieldOf("item").forGetter(PressableSolid::item),
             Identifier.CODEC.fieldOf("produces_juice").forGetter(PressableSolid::producesJuice),
             BuiltInRegistries.SOUND_EVENT.byNameCodec().fieldOf("press_sound").forGetter(PressableSolid::pressSound),
-            BuiltInRegistries.ITEM.byNameCodec().fieldOf("residue_item").forGetter(PressableSolid::residueItem)
+            BuiltInRegistries.ITEM.byNameCodec().fieldOf("residue_item").forGetter(PressableSolid::residueItem),
+            Identifier.CODEC.fieldOf("solid_texture").forGetter(PressableSolid::solidTexture)
     ).apply(instance, PressableSolid::new));
 }

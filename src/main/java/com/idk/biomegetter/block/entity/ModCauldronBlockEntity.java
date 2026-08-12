@@ -1,11 +1,20 @@
 package com.idk.biomegetter.block.entity;
 
+import com.idk.biomegetter.block.custom.cauldron.data.PressableSolid;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -124,12 +133,18 @@ public class ModCauldronBlockEntity extends BlockEntity {
         return this.juiceType == null || this.juiceType.equals(candidateJuice);
     }
 
-    public void addSolid(Identifier solidJuiceProduced) {
+    public void addSolid(PressableSolid solid) {
         if (this.juiceType == null) {
-            this.juiceType = solidJuiceProduced;
+            this.juiceType = solid.producesJuice();
         }
+        this.solidType = solid.solidTexture();
         this.solidLevel = Math.min(3, this.solidLevel + 1);
         this.setChanged();
+
+        if (level instanceof ServerLevel serverLevel) {
+            serverLevel.getChunkSource().blockChanged(worldPosition);
+            serverLevel.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
     }
 
     /**
@@ -143,24 +158,57 @@ public class ModCauldronBlockEntity extends BlockEntity {
             this.juiceLevel = Math.min(3, this.juiceLevel + 1);
         }
         this.setChanged();
+
+        if (level instanceof ServerLevel serverLevel) {
+            serverLevel.getChunkSource().blockChanged(worldPosition);
+            // или
+            serverLevel.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        }
+
         return finished;
     }
 
-//    @Override
-//    protected void saveAdditional(ValueOutput output) {
-//        super.saveAdditional(output);
-//        output.putBoolean("HasBlockAbove", this.hasBlockAbove);
-//        output.putBoolean("HeatedBelow", this.heatedBelow);
-//        output.putInt("EvaporationTimer", this.evaporationTimer);
-//        output.putString("Content", this.content.name());
-//    }
-//
-//    @Override
-//    protected void loadAdditional(ValueInput input) {
-//        super.loadAdditional(input);
-//        this.hasBlockAbove = input.getBooleanOr("HasBlockAbove", false);
-//        this.heatedBelow = input.getBooleanOr("HeatedBelow", false);
-//        this.evaporationTimer = input.getIntOr("EvaporationTimer", EVAPORATION_INTERVAL_TICKS);
-//        this.content = Content.valueOf(input.getStringOr("Content", Content.EMPTY.name()));
-//    }
+    @Override
+    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
+        return this.saveWithoutMetadata(registries); // или руками putInt/putString
+    }
+
+    @Override
+    public Packet<ClientGamePacketListener> getUpdatePacket() {
+        return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    @Override
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        output.putBoolean("HasBlockAbove", this.hasBlockAbove);
+        output.putBoolean("HeatedBelow", this.heatedBelow);
+        output.putInt("EvaporationTimer", this.evaporationTimer);
+        output.putBoolean("PowderSnowAbove", this.powderSnowAbove);
+        output.putInt("MeltTimer", this.meltTimer);
+
+        output.putInt("JuiceLevel", this.juiceLevel);
+        output.putInt("SolidLevel", this.solidLevel);
+        if (this.juiceType != null) {
+            output.putString("JuiceType", this.juiceType.toString());
+        }
+        if (this.solidType != null) {
+            output.putString("SolidType", this.solidType.toString());
+        }
+    }
+
+    @Override
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        this.hasBlockAbove = input.getBooleanOr("HasBlockAbove", false);
+        this.heatedBelow = input.getBooleanOr("HeatedBelow", false);
+        this.evaporationTimer = input.getIntOr("EvaporationTimer", EVAPORATION_INTERVAL_TICKS);
+        this.powderSnowAbove = input.getBooleanOr("PowderSnowAbove", false);
+        this.meltTimer = input.getIntOr("MeltTimer", MELT_INTERVAL_TICKS);
+
+        this.juiceLevel = input.getIntOr("JuiceLevel", 0);
+        this.solidLevel = input.getIntOr("SolidLevel", 0);
+        this.juiceType = input.getString("JuiceType").map(Identifier::parse).orElse(null);
+        this.solidType = input.getString("SolidType").map(Identifier::parse).orElse(null);
+    }
 }

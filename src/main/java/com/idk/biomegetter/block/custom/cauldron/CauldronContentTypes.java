@@ -26,7 +26,7 @@ public final class CauldronContentTypes {
     public static final CauldronContentType LAVA = register(new CauldronContentType(
             Content.LAVA, Items.LAVA_BUCKET,
             id("lava_cauldron"), id("lava_cauldron"), id("lava_cauldron"),
-            id("lava_cauldron"),
+            id("lava_still"),
             false, 0xFFFFFFFF, // непрозрачный белый = без изменений цвета
             false, true, false, 4.0F,
             SoundEvents.BUCKET_EMPTY_LAVA, SoundEvents.BUCKET_FILL_LAVA,
@@ -36,7 +36,7 @@ public final class CauldronContentTypes {
     public static final CauldronContentType POWDER_SNOW = register(new CauldronContentType(
             Content.POWDER_SNOW, Items.POWDER_SNOW_BUCKET,
             id("powder_snow_cauldron"), id("powder_snow_cauldron"), id("powder_snow_cauldron"),
-            null,// ← у снега нет "жидкой крышки", рендерить нечего — просто пропустим в рендерере
+            id("powder_snow"),// ← у снега нет "жидкой крышки", рендерить нечего — просто пропустим в рендерере
             false, 0xFFFFFFFF,
             false, false, false, 0.0F,
             SoundEvents.BUCKET_EMPTY_POWDER_SNOW, SoundEvents.BUCKET_FILL_POWDER_SNOW,

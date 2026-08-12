@@ -21,7 +21,7 @@ public class CauldronPressableSolidLoader extends SimpleJsonResourceReloadListen
     private static Map<Identifier, PressableSolid> REGISTRY = Map.of();
 
     public CauldronPressableSolidLoader() {
-        super(PressableSolid.CODEC, FileToIdConverter.json("biomegetter/pressable_solid"));
+        super(PressableSolid.CODEC, FileToIdConverter.json("pressable_solid"));
     }
 
     @Override
@@ -33,6 +33,7 @@ public class CauldronPressableSolidLoader extends SimpleJsonResourceReloadListen
     protected void apply(Map<Identifier, PressableSolid> data, ResourceManager resourceManager, ProfilerFiller profiler) {
         REGISTRY = new HashMap<>(data);
         BiomeGetter.LOGGER.info("Loaded {} pressable solids", REGISTRY.size());
+        BiomeGetter.LOGGER.info("Raw data keys: {}", data.keySet());
     }
 
     /**
