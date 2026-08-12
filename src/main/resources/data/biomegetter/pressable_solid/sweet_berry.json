@@ -1,0 +1,6 @@
+{
+  "item": "minecraft:sweet_berries",
+  "produces_juice": "biomegetter:sweet_berry_juice",
+  "press_sound": "minecraft:block.honey_block.step",
+  "residue_item": "minecraft:sugar"
+}

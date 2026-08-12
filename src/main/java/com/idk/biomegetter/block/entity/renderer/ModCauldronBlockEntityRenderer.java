@@ -68,7 +68,7 @@ public class ModCauldronBlockEntityRenderer implements BlockEntityRenderer<ModCa
             int lvl = blockState.getValue(BlockStateProperties.LEVEL_CAULDRON);
             state.baseHeight = (6f + lvl * 3f) / 16f;
             CauldronContentType type = CauldronContentTypes.get(content);
-            state.baseTexture = type.level1Model(); // временно берём как есть; текстуру дальше достаём через sprite-lookup
+            state.baseTexture = type.contentTexture(); // временно берём как есть; текстуру дальше достаём через sprite-lookup
             state.baseTint = type.useBiomeWaterTint() && level instanceof BlockAndTintGetter tintGetter
                     ? BiomeColors.getAverageWaterColor(tintGetter, pos)
                     : type.tintColor();

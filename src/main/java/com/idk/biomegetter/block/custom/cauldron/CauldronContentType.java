@@ -12,6 +12,7 @@ public record CauldronContentType(
         Identifier level1Model,
         Identifier level2Model,
         Identifier level3Model,
+        Identifier contentTexture,
         boolean useBiomeWaterTint,   // true только у настоящей воды
         int tintColor,
 // ARGB С АЛЬФОЙ (0xFFxxxxxx для непрозрачного) — используется только если useBiomeWaterTint == false
