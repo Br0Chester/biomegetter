@@ -2,12 +2,16 @@ package com.idk.biomegetter;
 
 import com.idk.biomegetter.block.ModBlockEntities;
 import com.idk.biomegetter.block.ModBlocks;
+import com.idk.biomegetter.block.custom.cauldron.data.CauldronJuiceTypeLoader;
+import com.idk.biomegetter.block.custom.cauldron.data.CauldronPressableSolidLoader;
 import com.idk.biomegetter.creativemodetab.ModCreativeModeTabs;
 import com.idk.biomegetter.datagen.ModBlockTagsProvider;
 import com.idk.biomegetter.entity.ModEntities;
 import com.idk.biomegetter.item.ModItems;
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.packs.PackType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +36,8 @@ public class BiomeGetter implements ModInitializer {
         ModCreativeModeTabs.registerModCreativeModeTabs();
         ModEntities.registerModEntityTypes();
         ModEntities.registerAttributes();
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronJuiceTypeLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronPressableSolidLoader());
     }
 
     public static Identifier id(String path) {

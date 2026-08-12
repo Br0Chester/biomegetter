@@ -1,10 +1,12 @@
 package com.idk.biomegetter.block.entity;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Общее состояние наших котлов: осведомлённость об окружении (кэш, а не live-сканирование)
@@ -18,6 +20,27 @@ public class ModCauldronBlockEntity extends BlockEntity {
 
     private boolean powderSnowAbove;
     private int meltTimer = MELT_INTERVAL_TICKS;
+
+    @Nullable
+    private Identifier juiceType;
+    private int juiceLevel;
+    @Nullable
+    private Identifier solidType;
+    private int solidLevel;
+
+    @Nullable
+    public Identifier getJuiceType() {
+        return this.juiceType;
+    }
+
+    public int getJuiceLevel() {
+        return this.juiceLevel;
+    }
+
+    @Nullable
+    public Identifier getSolidType() {
+        return this.solidType;
+    }
 
     public enum Content implements StringRepresentable {
         EMPTY("empty"), WATER("water"), LAVA("lava"), POWDER_SNOW("powder_snow"), MILK("milk"), JUICE("juice");
@@ -90,6 +113,37 @@ public class ModCauldronBlockEntity extends BlockEntity {
             return true;
         }
         return false;
+    }
+
+    public int getSolidLevel() {
+        return this.solidLevel;
+    }
+
+    public boolean canAddSolid(Identifier candidateJuice) {
+        if (this.solidLevel >= 3) return false;
+        return this.juiceType == null || this.juiceType.equals(candidateJuice);
+    }
+
+    public void addSolid(Identifier solidJuiceProduced) {
+        if (this.juiceType == null) {
+            this.juiceType = solidJuiceProduced;
+        }
+        this.solidLevel = Math.min(3, this.solidLevel + 1);
+        this.setChanged();
+    }
+
+    /**
+     * @return true, если осадок только что полностью выдавлен (пора выдать предмет-остаток)
+     */
+    public boolean pressSolidOnce() {
+        if (this.solidLevel <= 0) return false;
+        this.solidLevel--;
+        boolean finished = this.solidLevel == 0;
+        if (finished) {
+            this.juiceLevel = Math.min(3, this.juiceLevel + 1);
+        }
+        this.setChanged();
+        return finished;
     }
 
 //    @Override

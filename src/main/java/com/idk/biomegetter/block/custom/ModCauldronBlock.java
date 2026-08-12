@@ -3,6 +3,8 @@ package com.idk.biomegetter.block.custom;
 import com.idk.biomegetter.block.ModBlockEntities;
 import com.idk.biomegetter.block.custom.cauldron.CauldronContentType;
 import com.idk.biomegetter.block.custom.cauldron.CauldronContentTypes;
+import com.idk.biomegetter.block.custom.cauldron.data.CauldronPressableSolidLoader;
+import com.idk.biomegetter.block.custom.cauldron.data.PressableSolid;
 import com.idk.biomegetter.block.entity.ModCauldronBlockEntity;
 import com.idk.biomegetter.block.entity.ModCauldronBlockEntity.Content;
 import com.mojang.serialization.MapCodec;
@@ -94,13 +96,21 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
         return (6.0 + state.getValue(BlockStateProperties.LEVEL_CAULDRON) * 3.0) / 16.0;
     }
 
+    //    @Override
+//    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+//        int berryLevel = state.getValue(BERRY_LEVEL);
+//        if (berryLevel == 0) {
+//            return AbstractCauldronBlock.SHAPE;
+//        }
+//        return Shapes.or(AbstractCauldronBlock.SHAPE, Block.column(12.0, 4.0, 6.0 + berryLevel * 3.0));
+//    }
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        int berryLevel = state.getValue(BERRY_LEVEL);
-        if (berryLevel == 0) {
+        int solidLevel = level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron ? cauldron.getSolidLevel() : 0;
+        if (solidLevel == 0) {
             return AbstractCauldronBlock.SHAPE;
         }
-        return Shapes.or(AbstractCauldronBlock.SHAPE, Block.column(12.0, 4.0, 6.0 + berryLevel * 3.0));
+        return Shapes.or(AbstractCauldronBlock.SHAPE, Block.column(12.0, 4.0, 6.0 + solidLevel * 3.0));
     }
 
 
@@ -173,15 +183,26 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
         }
 
         // 5.Наполнение сладкими ягодами
+//        if (item == Items.SWEET_BERRIES) {
+//            int berryLevel = state.getValue(BERRY_LEVEL);
+////            Content content = state.getValue(CONTENT);
+//            boolean canAddBerries = berryLevel < 3
+//                    && (content == Content.EMPTY || content == Content.JUICE)
+//                    && !(content == Content.JUICE && state.getValue(BlockStateProperties.LEVEL_CAULDRON) == 3);
+//            if (canAddBerries) {
+//                if (!level.isClientSide()) {
+//                    level.setBlockAndUpdate(pos, state.setValue(BERRY_LEVEL, berryLevel + 1));
+//                    level.playSound(null, pos, SoundEvents.HONEY_BLOCK_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F);
+//                    itemStack.shrink(1);
+//                }
+//                return InteractionResult.SUCCESS;
+//            }
+//        }
         if (item == Items.SWEET_BERRIES) {
-            int berryLevel = state.getValue(BERRY_LEVEL);
-//            Content content = state.getValue(CONTENT);
-            boolean canAddBerries = berryLevel < 3
-                    && (content == Content.EMPTY || content == Content.JUICE)
-                    && !(content == Content.JUICE && state.getValue(BlockStateProperties.LEVEL_CAULDRON) == 3);
-            if (canAddBerries) {
+            PressableSolid solid = CauldronPressableSolidLoader.getByItem(item);
+            if (solid != null && cauldron.canAddSolid(solid.producesJuice())) {
                 if (!level.isClientSide()) {
-                    level.setBlockAndUpdate(pos, state.setValue(BERRY_LEVEL, berryLevel + 1));
+                    cauldron.addSolid(solid.producesJuice());
                     level.playSound(null, pos, SoundEvents.HONEY_BLOCK_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F);
                     itemStack.shrink(1);
                 }
@@ -270,33 +291,49 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
                 || (below.getBlock() instanceof CampfireBlock && below.getValue(CampfireBlock.LIT));
     }
 
+    //    @Override
+//    public void fallOn(Level level, BlockState state, BlockPos pos, Entity entity, double fallDistance) {
+//        int berryLevel = state.getValue(BERRY_LEVEL);
+//        if (berryLevel > 0 && fallDistance > 0.5) { // отсекаем обычную ходьбу, только заметное падение/прыжок
+//            if (!level.isClientSide() && level instanceof ServerLevel serverLevel) {
+//                int newBerryLevel = berryLevel - 1;
+//                BlockState newState = state.setValue(BERRY_LEVEL, newBerryLevel);
+//
+//                if (newBerryLevel == 0) {
+//                    Content content = state.getValue(CONTENT);
+//                    int currentJuiceLevel = content == Content.JUICE ? state.getValue(BlockStateProperties.LEVEL_CAULDRON) : 0;
+//                    int newJuiceLevel = Math.min(3, currentJuiceLevel + 1);
+//                    newState = newState.setValue(CONTENT, Content.JUICE).setValue(BlockStateProperties.LEVEL_CAULDRON, newJuiceLevel);
+//                    popResource(level, pos, new ItemStack(Items.SUGAR));
+//                }
+//
+//                level.setBlockAndUpdate(pos, newState);
+//                serverLevel.sendParticles(ParticleTypes.CRIMSON_SPORE, pos.getX() + 0.5, pos.getY() + 0.6, pos.getZ() + 0.5, 12, 0.3, 0.2, 0.3, 0.05);
+//                level.playSound(null, pos, SoundEvents.HONEY_BLOCK_FALL, SoundSource.BLOCKS, 1.0F, 1.0F);
+//            }
+//            entity.causeFallDamage((float) fallDistance, 1.0F, entity.damageSources().fall()); // сохраняем обычный урон от падения
+//            return;
+//        }
+//        super.fallOn(level, state, pos, entity, fallDistance);
+//    }
     @Override
     public void fallOn(Level level, BlockState state, BlockPos pos, Entity entity, double fallDistance) {
-        int berryLevel = state.getValue(BERRY_LEVEL);
-        if (berryLevel > 0 && fallDistance > 0.5) { // отсекаем обычную ходьбу, только заметное падение/прыжок
+        if (level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron && cauldron.getSolidLevel() > 0 && fallDistance > 0.5) {
             if (!level.isClientSide() && level instanceof ServerLevel serverLevel) {
-                int newBerryLevel = berryLevel - 1;
-                BlockState newState = state.setValue(BERRY_LEVEL, newBerryLevel);
-
-                if (newBerryLevel == 0) {
-                    Content content = state.getValue(CONTENT);
-                    int currentJuiceLevel = content == Content.JUICE ? state.getValue(BlockStateProperties.LEVEL_CAULDRON) : 0;
-                    int newJuiceLevel = Math.min(3, currentJuiceLevel + 1);
-                    newState = newState.setValue(CONTENT, Content.JUICE).setValue(BlockStateProperties.LEVEL_CAULDRON, newJuiceLevel);
+                boolean finished = cauldron.pressSolidOnce();
+                if (finished) {
                     popResource(level, pos, new ItemStack(Items.SUGAR));
                 }
-
-                level.setBlockAndUpdate(pos, newState);
                 serverLevel.sendParticles(ParticleTypes.CRIMSON_SPORE, pos.getX() + 0.5, pos.getY() + 0.6, pos.getZ() + 0.5, 12, 0.3, 0.2, 0.3, 0.05);
                 level.playSound(null, pos, SoundEvents.HONEY_BLOCK_FALL, SoundSource.BLOCKS, 1.0F, 1.0F);
             }
-            entity.causeFallDamage((float) fallDistance, 1.0F, entity.damageSources().fall()); // сохраняем обычный урон от падения
+            entity.causeFallDamage((float) fallDistance, 1.0F, entity.damageSources().fall());
             return;
         }
         super.fallOn(level, state, pos, entity, fallDistance);
     }
 
-    
+
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
