@@ -1,0 +1,67 @@
+{
+  "required_liquids": [
+    {
+      "type": "biomegetter:milk",
+      "count": 3
+    }
+  ],
+  "required_solids": [
+    {
+      "type": "biomegetter:powder_snow",
+      "count": 1
+    },
+    {
+      "type": "biomegetter:sugar",
+      "count": 1
+    }
+  ],
+  "conditions": {
+    "requires_heated": false
+  },
+  "intermediate_texture": "minecraft:block/water_still",
+  "intermediate_tint": "#FFB0E0FF",
+  "result_liquid": "biomegetter:ice_cream",
+  "result_count": 3,
+  "completion_effects": [
+    {
+      "type": "spawn_particles",
+      "particle": "minecraft:explosion",
+      "count": 5
+    },
+    {
+      "type": "spawn_particles",
+      "particle": "minecraft:happy_villager",
+      "count": 10
+    }
+  ],
+  "foam_color": "#A0808080",
+  "stages": [
+    {
+      "type": "cook",
+      "duration_ticks": 600,
+      "particle": "minecraft:end_rod"
+    },
+    {
+      "type": "await_ingredient",
+      "required_solids": [
+        {
+          "type": "biomegetter:powder_snow",
+          "count": 1
+        }
+      ],
+      "idle_phases": [
+        {
+          "duration_ticks": 200
+        },
+        {
+          "duration_ticks": 200,
+          "particle": "minecraft:crimson_spore"
+        },
+        {
+          "duration_ticks": 200,
+          "particle": "minecraft:large_smoke"
+        }
+      ]
+    }
+  ]
+}

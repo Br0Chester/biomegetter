@@ -1,0 +1,10 @@
+{
+  "input_item": "minecraft:stone",
+  "category": "spice",
+  "sustenance": 0,
+  "buff_transforms": [
+    {
+      "type": "invert_buffs"
+    }
+  ]
+}

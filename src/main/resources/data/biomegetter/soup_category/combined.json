@@ -1,0 +1,8 @@
+{
+  "requires_categories": [
+    "meat",
+    "fish"
+  ],
+  "priority": 0,
+  "display_name": "Combined Soup"
+}

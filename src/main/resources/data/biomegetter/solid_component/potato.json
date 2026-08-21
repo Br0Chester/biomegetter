@@ -1,0 +1,11 @@
+{
+  "input_item": "minecraft:potato",
+  "input_count": 1,
+  "group": "organic",
+  "texture": "minecraft:block/hay_block_side",
+  "returns_empty_bucket": false,
+  "output_item": "minecraft:potato",
+  "output_count": 1,
+  "place_sound": "minecraft:item.bucket.empty_powder_snow",
+  "unique_starter": "soup"
+}

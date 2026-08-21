@@ -1,9 +1,6 @@
 package com.idk.biomegetter;
 
 import com.idk.biomegetter.block.ModBlockEntities;
-import com.idk.biomegetter.block.ModBlocks;
-import com.idk.biomegetter.block.custom.cauldron.BerryTintProvider;
-import com.idk.biomegetter.block.custom.cauldron.WaterCauldronColorProvider;
 import com.idk.biomegetter.block.entity.renderer.ModCauldronBlockEntityRenderer;
 import com.idk.biomegetter.entity.ModEntities;
 import com.idk.biomegetter.entity.client.ModEntityModelLayers;
@@ -12,12 +9,9 @@ import com.idk.biomegetter.entity.client.renderer.AllyZombieRenderer;
 import com.idk.biomegetter.entity.client.renderer.UnicornBoltRenderer;
 import com.idk.biomegetter.entity.renderer.UnicornEntityRenderer;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.rendering.v1.BlockColorRegistry;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 import net.minecraft.client.renderer.entity.EntityRenderers;
 import net.minecraft.client.renderer.entity.WitherSkeletonRenderer;
-
-import java.util.List;
 
 public class BiomeGetterCustomEntityClient implements ClientModInitializer {
     @Override
@@ -35,10 +29,10 @@ public class BiomeGetterCustomEntityClient implements ClientModInitializer {
 
         BlockEntityRenderers.register(ModBlockEntities.CAULDRON, ModCauldronBlockEntityRenderer::new);
 
-        BlockColorRegistry.register(
-                List.of(new WaterCauldronColorProvider(), new BerryTintProvider()),
-                ModBlocks.WATER_CAULDRON
-        );
+//        BlockColorRegistry.register(
+//                List.of(new WaterCauldronColorProvider(), new BerryTintProvider()),
+//                ModBlocks.WATER_CAULDRON
+//        );
 
     }
 

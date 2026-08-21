@@ -1,0 +1,15 @@
+{
+  "input_item": "minecraft:cocoa_beans",
+  "category": "spice",
+  "sustenance": 0,
+  "modifiers": [
+    {
+      "target_category": "meat",
+      "duration_multiplier": 1.3
+    },
+    {
+      "target_category": "vegetable",
+      "duration_multiplier": 0.7
+    }
+  ]
+}

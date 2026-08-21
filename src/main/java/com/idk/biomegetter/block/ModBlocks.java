@@ -42,6 +42,13 @@ public class ModBlocks {
                             .requiresCorrectToolForDrops()
                             .sound(SoundType.BAMBOO)));
 
+    public static final Block WATER_CAULDRON = registerBlock("water_cauldron",
+            properties -> new com.idk.biomegetter.block.custom.ModCauldronBlock(properties
+                    .strength(2f)
+                    .sound(SoundType.LANTERN)
+                    .noOcclusion()
+                    .randomTicks()));
+
     private static Block registerBlock(String name, Function<BlockBehaviour.Properties, Block> function) {
         Block toRegister = function.apply(BlockBehaviour.Properties.of().setId(ResourceKey.create(Registries.BLOCK, Identifier.fromNamespaceAndPath(BiomeGetter.MOD_ID, name))));
         registerBlockItem(name, toRegister);
@@ -53,12 +60,6 @@ public class ModBlocks {
                 new BlockItem(block, new Item.Properties().useBlockDescriptionPrefix()
                         .setId(ResourceKey.create(Registries.ITEM, Identifier.fromNamespaceAndPath(BiomeGetter.MOD_ID, name)))));
     }
-
-    public static final Block WATER_CAULDRON = registerBlock("water_cauldron",
-            properties -> new com.idk.biomegetter.block.custom.ModCauldronBlock(properties
-                    .strength(2f)
-                    .sound(SoundType.LANTERN)
-                    .noOcclusion()));
 
     public static void registerModBlocks() {
         BiomeGetter.LOGGER.info("Registered Mod Blocks for " + BiomeGetter.MOD_ID);

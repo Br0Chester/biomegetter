@@ -1,0 +1,10 @@
+{
+  "input_item": "minecraft:oak_button",
+  "input_count": 1,
+  "group": "organic",
+  "texture": "minecraft:block/quartz_block_side",
+  "returns_empty_bucket": false,
+  "output_item": "minecraft:oak_button",
+  "output_count": 1,
+  "place_sound": "minecraft:item.bucket.empty_powder_snow"
+}

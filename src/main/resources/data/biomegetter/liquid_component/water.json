@@ -1,0 +1,9 @@
+{
+  "texture": "minecraft:block/water_still",
+  "use_biome_tint": true,
+  "pour_bucket_item": "minecraft:water_bucket",
+  "collect_bucket_item": "minecraft:water_bucket",
+  "fill_sound": "minecraft:item.bucket.empty",
+  "empty_sound": "minecraft:item.bucket.fill",
+  "group": "aqueous"
+}

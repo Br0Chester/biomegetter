@@ -1,0 +1,26 @@
+{
+  "cook_duration_ticks": 200,
+  "cook_particle": "minecraft:end_rod",
+  "cook_texture": "minecraft:block/water_still",
+  "cook_tint": "#A0808080",
+  "idle_phases": [
+    {
+      "duration_ticks": 200
+    },
+    {
+      "duration_ticks": 200,
+      "particle": "minecraft:crimson_spore"
+    },
+    {
+      "duration_ticks": 200,
+      "particle": "minecraft:large_smoke"
+    }
+  ],
+  "completion_effects": [
+    {
+      "type": "spawn_particles",
+      "particle": "minecraft:happy_villager",
+      "count": 10
+    }
+  ]
+}

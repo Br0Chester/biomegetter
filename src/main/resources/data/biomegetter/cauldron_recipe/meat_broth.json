@@ -1,0 +1,29 @@
+{
+  "required_liquids": [
+    {
+      "type": "biomegetter:water",
+      "count": 3
+    }
+  ],
+  "required_solids": [
+    {
+      "tag": "meat",
+      "count": 1
+    }
+  ],
+  "conditions": {
+    "requires_heated": true
+  },
+  "intermediate_texture": "minecraft:block/water_still",
+  "intermediate_tint": "#FFB35A3C",
+  "result_liquid": "biomegetter:meat_broth",
+  "result_count": 3,
+  "foam_color": "#A0808080",
+  "stages": [
+    {
+      "type": "cook",
+      "duration_ticks": 400,
+      "particle": "minecraft:end_rod"
+    }
+  ]
+}

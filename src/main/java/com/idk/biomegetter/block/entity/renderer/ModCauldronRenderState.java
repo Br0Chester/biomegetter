@@ -4,21 +4,25 @@ import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
 import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 
+/**
+ * Рендерим только ВЕРХНИЙ слой жидкостного стека и верхний элемент твёрдого стека —
+ * по договорённости, полноценный рендер всех разнородных слоёв отложен на будущее.
+ */
 public class ModCauldronRenderState extends BlockEntityRenderState {
-    public float baseHeight;      // 0..1, содержимое из старой системы (вода/лава/молоко/снег)
-    public int baseTint = -1;
+    public float liquidHeight;
+    public int liquidTint = -1;
     @Nullable
-    public Identifier baseTexture;
+    public Identifier liquidTexture;
 
-    public float juiceHeight;     // 0..1
-    public int juiceTint = -1;
-    @Nullable
-    public Identifier juiceTexture;
-
-    public float solidHeight;     // 0..1
+    public float solidHeight;
     public int solidTint = -1;
     @Nullable
     public Identifier solidTexture;
 
     public int lightCoords;
+
+    public float overlayHeight;
+    public int overlayTint = -1;
+    @Nullable
+    public Identifier overlayTexture;
 }

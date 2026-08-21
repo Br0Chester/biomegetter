@@ -1,0 +1,10 @@
+{
+  "input_item": "minecraft:iron_nugget",
+  "input_count": 9,
+  "group": "metal",
+  "texture": "minecraft:block/raw_iron_block",
+  "tint_color": "#FFFFFFFF",
+  "output_item": "minecraft:iron_nugget",
+  "output_count": 9,
+  "place_sound": "minecraft:block.metal.place"
+}

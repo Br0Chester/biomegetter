@@ -1,0 +1,8 @@
+{
+  "requires_categories": [
+    "vegetable"
+  ],
+  "priority": 5,
+  "display_name": "Vegetable Soup",
+  "tint_color": "#FFE8C468"
+}

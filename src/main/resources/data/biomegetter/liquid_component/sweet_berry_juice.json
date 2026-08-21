@@ -1,0 +1,8 @@
+{
+  "texture": "minecraft:block/water_still",
+  "tint_color": "#FFB0202A",
+  "collect_bucket_item": "minecraft:water_bucket",
+  "fill_sound": "minecraft:item.bucket.empty",
+  "empty_sound": "minecraft:item.bucket.fill",
+  "group": "aqueous"
+}

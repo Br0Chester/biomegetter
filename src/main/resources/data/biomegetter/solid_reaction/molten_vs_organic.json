@@ -1,0 +1,10 @@
+{
+  "liquid_group": "molten",
+  "solid_group": "organic",
+  "effects": [
+    {
+      "type": "play_sound",
+      "sound": "minecraft:entity.generic.burn"
+    }
+  ]
+}

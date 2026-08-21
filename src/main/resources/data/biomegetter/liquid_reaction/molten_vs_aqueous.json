@@ -1,0 +1,15 @@
+{
+  "group_a": "molten",
+  "group_b": "aqueous",
+  "effects": [
+    {
+      "type": "drop_item",
+      "item": "minecraft:cobblestone",
+      "count_per_unit": 1
+    },
+    {
+      "type": "play_sound",
+      "sound": "minecraft:entity.generic.extinguish_fire"
+    }
+  ]
+}

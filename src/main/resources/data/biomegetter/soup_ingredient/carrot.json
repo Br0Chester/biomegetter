@@ -1,0 +1,12 @@
+{
+  "category": "vegetable",
+  "sustenance": 1,
+  "effects": [
+    {
+      "effect": "minecraft:speed",
+      "amplifier": 0,
+      "duration_ticks": 100,
+      "max_amplifier": 2
+    }
+  ]
+}

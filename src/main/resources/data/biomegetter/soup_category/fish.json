@@ -1,0 +1,7 @@
+{
+  "requires_categories": [
+    "fish"
+  ],
+  "priority": 2,
+  "display_name": "Fish Soup"
+}

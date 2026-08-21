@@ -1,0 +1,48 @@
+{
+  "required_liquids": [
+    {
+      "type": "biomegetter:ice_cream",
+      "count": 3
+    }
+  ],
+  "required_solids": [
+    {
+      "type": "biomegetter:iron_nuggets",
+      "count": 1
+    }
+  ],
+  "required_entity": {
+    "entity_type": "minecraft:rabbit"
+  },
+  "conditions": {},
+  "intermediate_texture": "minecraft:block/water_still",
+  "intermediate_tint": "#FFFFD700",
+  "foam_color": "#A0808080",
+  "completion_effects": [
+    {
+      "type": "drop_item_near",
+      "item": "minecraft:gold_ingot",
+      "count_per_unit": 3
+    },
+    {
+      "type": "spawn_entity",
+      "entity_type": "minecraft:chicken"
+    },
+    {
+      "type": "spawn_particles",
+      "particle": "minecraft:portal",
+      "count": 20
+    },
+    {
+      "type": "play_sound",
+      "sound": "minecraft:entity.enderman.teleport"
+    }
+  ],
+  "stages": [
+    {
+      "type": "cook",
+      "duration_ticks": 200,
+      "particle": "minecraft:end_rod"
+    }
+  ]
+}

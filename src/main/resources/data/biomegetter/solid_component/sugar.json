@@ -1,0 +1,10 @@
+{
+  "input_item": "minecraft:sugar",
+  "input_count": 1,
+  "group": "organic",
+  "texture": "minecraft:block/stripped_pale_oak_log",
+  "returns_empty_bucket": true,
+  "output_item": "minecraft:sugar",
+  "output_count": 1,
+  "place_sound": "minecraft:item.bucket.empty_powder_snow"
+}

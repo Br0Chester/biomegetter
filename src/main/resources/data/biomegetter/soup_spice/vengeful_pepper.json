@@ -1,0 +1,18 @@
+{
+  "input_item": "minecraft:blaze_powder",
+  "category": "spice",
+  "sustenance": 0,
+  "eat_triggers": [
+    {
+      "type": "explosive_backlash",
+      "radius": 4.0,
+      "poison_duration_ticks": 100,
+      "poison_amplifier": 1
+    },
+    {
+      "type": "hostile_repel",
+      "radius": 10.0,
+      "duration_ticks": 200
+    }
+  ]
+}

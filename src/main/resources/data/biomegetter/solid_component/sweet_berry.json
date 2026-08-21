@@ -1,0 +1,10 @@
+{
+  "input_item": "minecraft:sweet_berries",
+  "input_count": 1,
+  "group": "organic",
+  "texture": "minecraft:block/cobblestone",
+  "output_item": "minecraft:sweet_berries",
+  "output_count": 1,
+  "produces_juice": "biomegetter:sweet_berry_juice",
+  "place_sound": "minecraft:block.honey_block.place"
+}

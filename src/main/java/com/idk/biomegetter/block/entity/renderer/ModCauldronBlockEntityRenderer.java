@@ -1,12 +1,7 @@
 package com.idk.biomegetter.block.entity.renderer;
 
-import com.idk.biomegetter.block.custom.ModCauldronBlock;
-import com.idk.biomegetter.block.custom.cauldron.CauldronContentType;
-import com.idk.biomegetter.block.custom.cauldron.CauldronContentTypes;
-import com.idk.biomegetter.block.custom.cauldron.data.CauldronJuiceTypeLoader;
-import com.idk.biomegetter.block.custom.cauldron.data.JuiceType;
+import com.idk.biomegetter.block.custom.cauldron.data.*;
 import com.idk.biomegetter.block.entity.ModCauldronBlockEntity;
-import com.idk.biomegetter.block.entity.ModCauldronBlockEntity.Content;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import net.minecraft.client.Minecraft;
@@ -27,12 +22,17 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LightLayer;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
 public class ModCauldronBlockEntityRenderer implements BlockEntityRenderer<ModCauldronBlockEntity, ModCauldronRenderState> {
+
+    //  Инициализируем текстуры
+//    private static final Identifier POWDER_SNOW_TEXTURE = Identifier.fromNamespaceAndPath("minecraft", "block/powder_snow");
+    private static final Identifier FALLBACK_TEXTURE = Identifier.fromNamespaceAndPath("minecraft", "block/water_still");
+    // новая константа рядом с существующими POWDER_SNOW_TEXTURE/FALLBACK_TEXTURE
+//    private static final Identifier LAVA_TEXTURE = Identifier.fromNamespaceAndPath("minecraft", "block/lava_still");
+//    private static final Identifier IRON_NUGGETS_TEXTURE = Identifier.fromNamespaceAndPath("minecraft", "block/lava_still");
 
     public ModCauldronBlockEntityRenderer(BlockEntityRendererProvider.Context context) {
     }
@@ -54,104 +54,117 @@ public class ModCauldronBlockEntityRenderer implements BlockEntityRenderer<ModCa
 
         Level level = blockEntity.getLevel();
         BlockPos pos = blockEntity.getBlockPos();
-        BlockState blockState = blockEntity.getBlockState();
-
-//        BiomeGetter.LOGGER.info("state={} content={} level={}",
-//                blockState,
-//                blockState.getValue(ModCauldronBlock.CONTENT),
-//                blockState.hasProperty(BlockStateProperties.LEVEL_CAULDRON)
-//                        ? blockState.getValue(BlockStateProperties.LEVEL_CAULDRON)
-//                        : -1
-//        );
-//        BiomeGetter.LOGGER.info("BE juiceId={} juiceLvl={} solidLvl={}",
-//                blockEntity.getJuiceType(),
-//                blockEntity.getJuiceLevel(),
-//                blockEntity.getSolidLevel()
-//        );
 
         state.lightCoords = level != null
                 ? LightCoordsUtil.pack(level.getBrightness(LightLayer.BLOCK, pos), level.getBrightness(LightLayer.SKY, pos))
                 : 0;
 
-        // Базовое содержимое (вода/лава/молоко/снег) — как и раньше, через CauldronContentTypes
-//        Content content = blockState.getValue(ModCauldronBlock.CONTENT);
-//        if (content == Content.EMPTY) {
-//            state.baseHeight = 0f;
-//            state.baseTint = -1;
-//        } else {
-//            int lvl = blockState.getValue(BlockStateProperties.LEVEL_CAULDRON);
-//            state.baseHeight = (6f + lvl * 3f) / 16f;
-//            CauldronContentType type = CauldronContentTypes.get(content);
-//            state.baseTexture = type.contentTexture(); // временно берём как есть; текстуру дальше достаём через sprite-lookup
-//            state.baseTint = type.useBiomeWaterTint() && level instanceof BlockAndTintGetter tintGetter
-//                    ? BiomeColors.getAverageWaterColor(tintGetter, pos)
-//                    : type.tintColor();
-//        }
-        Content content = blockState.getValue(ModCauldronBlock.CONTENT);
-        int lvl = blockState.getValue(BlockStateProperties.LEVEL_CAULDRON);
-
-        if (content == Content.EMPTY) {
-            state.baseHeight = 0f;
-            state.baseTexture = null;
-            state.baseTint = 0xFFFFFFFF;
-        } else {
-            CauldronContentType type = CauldronContentTypes.get(content);
-            state.baseHeight = (6f + lvl * 3f) / 16f;
-            state.baseTexture = type.contentTexture();
-
-            if (type.useBiomeWaterTint() && level instanceof BlockAndTintGetter tintGetter) {
-                int c = BiomeColors.getAverageWaterColor(tintGetter, pos);
-                state.baseTint = 0xFF000000 | (c & 0xFFFFFF);
-            } else {
-                state.baseTint = type.tintColor(); // для лавы/молока 0xFFFFFFFF — это ОКМАЛЬНО
+        // ---- Верхний слой жидкости ----
+        if (blockEntity.isCooking()) {
+            ModCauldronBlockEntity.BrewingState brewing = blockEntity.getBrewing();
+            if (brewing != null && brewing.soup()) {
+                SoupProcessConfig config = CauldronSoupProcessLoader.get();
+                state.liquidHeight = 15f / 16f;
+                state.liquidTexture = config.cookTexture();
+                state.liquidTint = config.cookTint().orElse(0xFFFFFFFF);
+                state.solidHeight = 0f;
+                state.solidTexture = null;
+                state.solidTint = 0xFFFFFFFF;
+                return;
+            }
+            CauldronRecipe recipe = brewing != null ? CauldronRecipeLoader.get(brewing.recipeId()) : null;
+            if (recipe != null) {
+                state.liquidHeight = 15f / 16f;
+                state.liquidTexture = recipe.intermediateTexture();
+                state.liquidTint = recipe.intermediateTint().orElse(0xFFFFFFFF);
+                state.solidHeight = 0f;
+                state.solidTexture = null;
+                state.solidTint = 0xFFFFFFFF;
+                return; // остальной блок (обычный рендер по реальным стекам) пропускаем
             }
         }
 
-        // Сок (динамический тип из датапака)
-        Identifier juiceId = blockEntity.getJuiceType();
-        int juiceLvl = blockEntity.getJuiceLevel();
+        int liquidCount = blockEntity.getLiquidCount();
+        ModCauldronBlockEntity.LiquidLayer topLiquid = blockEntity.getTopLiquidLayer();
 
-        if (juiceId == null || juiceLvl <= 0) {
-            state.juiceHeight = 0f;
-            state.juiceTexture = null;
-            state.juiceTint = 0xFFFFFFFF;
+        if (liquidCount == 0 || topLiquid == null) {
+            state.liquidHeight = 0f;
+            state.liquidTexture = null;
+            state.liquidTint = 0xFFFFFFFF;
         } else {
-            JuiceType juice = CauldronJuiceTypeLoader.get(juiceId);
-            if (juice != null) {
-                state.juiceHeight = (6f + juiceLvl * 3f) / 16f;
-                state.juiceTexture = juice.stillTexture(); // обязательно
-                state.juiceTint = juice.tintColor();       // обязательно, без -1
+            state.liquidHeight = (6f + liquidCount * 3f) / 16f;
+
+
+            LiquidVisual visual;
+            if (topLiquid instanceof ModCauldronBlockEntity.LiquidLayer.Soup soup) {
+                visual = new LiquidVisual(soup.data().texture(), soup.data().tint());
+            } else if (topLiquid instanceof ModCauldronBlockEntity.LiquidLayer.Liquid liquid) {
+                LiquidComponentType type = CauldronLiquidComponentLoader.get(liquid.typeId());
+                if (type == null) {
+                    visual = new LiquidVisual(null, 0xFFFFFFFF);
+                } else {
+                    int tint;
+                    if (type.useBiomeTint() && level instanceof BlockAndTintGetter tintGetter) {
+                        int c = BiomeColors.getAverageWaterColor(tintGetter, pos);
+                        tint = 0xFF000000 | (c & 0xFFFFFF);
+                    } else {
+                        tint = type.tintColor().orElse(0xFFFFFFFF);
+                    }
+                    visual = new LiquidVisual(type.texture(), tint);
+                }
             } else {
-                state.juiceHeight = 0f;
-                state.juiceTexture = null;
-                state.juiceTint = 0xFFFFFFFF;
+                visual = new LiquidVisual(null, 0xFFFFFFFF);
             }
+
+            state.liquidTexture = visual.texture();
+            state.liquidTint = visual.tint();
         }
 
-        // Осадок (ягоды)
-        int solidLvl = blockEntity.getSolidLevel();
+        // ---- Верхний элемент твёрдого стека ----
+        int solidCount = blockEntity.getSolidCount();
+        ModCauldronBlockEntity.SolidEntry topSolid = blockEntity.getTopSolidEntry();
 
-        if (solidLvl <= 0) {
+        if (solidCount == 0 || topSolid == null) {
             state.solidHeight = 0f;
             state.solidTexture = null;
             state.solidTint = 0xFFFFFFFF;
         } else {
-            state.solidHeight = (6f + solidLvl * 3f) / 16f;
+            state.solidHeight = (6f + solidCount * 3f) / 16f;
+            SolidComponentType type = CauldronSolidComponentLoader.get(topSolid.typeId());
 
-            // текстура осадка из BE (solid_texture из JSON)
-            state.solidTexture = blockEntity.getSolidType();
-
-            // цвет можно взять от связанного juice
-            Identifier juiceIdForSolid = blockEntity.getJuiceType();
-            JuiceType juice = juiceIdForSolid != null
-                    ? CauldronJuiceTypeLoader.get(juiceIdForSolid) : null;
-            state.solidTint = juice != null ? juice.tintColor() : 0xFFFFFFFF;
-
-            // fallback, если solidType ещё null
-            if (state.solidTexture == null) {
-                state.solidTexture = Identifier.fromNamespaceAndPath("minecraft", "block/water_still");
+            if (type == null) {
+                state.solidTexture = FALLBACK_TEXTURE;
+                state.solidTint = 0xFFFFFFFF;
+            } else {
+                state.solidTexture = type.texture();
+                if (type.tintColor().isPresent()) {
+                    state.solidTint = type.tintColor().get();
+                } else if (type.producesJuice().isPresent()) {
+                    LiquidComponentType juice = CauldronLiquidComponentLoader.get(type.producesJuice().get());
+                    state.solidTint = (juice != null && juice.tintColor().isPresent()) ? juice.tintColor().get() : 0xFFFFFFFF;
+                } else {
+                    state.solidTint = 0xFFFFFFFF;
+                }
             }
         }
+
+        // ---- "Пена"-заглушка на стадии ожидания ингредиентов ----
+        if (blockEntity.isAwaitingIngredient() && blockEntity.getLiquidCount() < 3) {
+            ModCauldronBlockEntity.BrewingState brewing = blockEntity.getBrewing();
+            CauldronRecipe recipe = brewing != null ? CauldronRecipeLoader.get(brewing.recipeId()) : null;
+            int foamColor = recipe != null ? recipe.foamColor().orElse(0xA0808080) : 0xA0808080;
+
+            state.overlayHeight = 15f / 16f;
+            state.overlayTexture = FALLBACK_TEXTURE; // временная текстура-заглушка под пену
+            state.overlayTint = foamColor;
+        } else {
+            state.overlayHeight = 0f;
+            state.overlayTexture = null;
+            state.overlayTint = 0xFFFFFFFF;
+        }
+    }
+
+    private record LiquidVisual(@Nullable Identifier texture, int tint) {
     }
 
     @Override
@@ -163,17 +176,17 @@ public class ModCauldronBlockEntityRenderer implements BlockEntityRenderer<ModCa
     ) {
         RenderType renderType = RenderTypes.translucentMovingBlock();
 
-        if (state.baseTexture != null && state.baseHeight > 0f) {
+        if (state.liquidTexture != null && state.liquidHeight > 0f) {
             submitQuad(poseStack, submitNodeCollector, renderType,
-                    state.baseHeight, state.baseTint, state.baseTexture, state.lightCoords);
-        }
-        if (state.juiceTexture != null && state.juiceHeight > 0f) {
-            submitQuad(poseStack, submitNodeCollector, renderType,
-                    state.juiceHeight, state.juiceTint, state.juiceTexture, state.lightCoords);
+                    state.liquidHeight, state.liquidTint, state.liquidTexture, state.lightCoords);
         }
         if (state.solidTexture != null && state.solidHeight > 0f) {
             submitQuad(poseStack, submitNodeCollector, renderType,
                     state.solidHeight, state.solidTint, state.solidTexture, state.lightCoords);
+        }
+        if (state.overlayTexture != null && state.overlayHeight > 0f) {
+            submitQuad(poseStack, submitNodeCollector, renderType,
+                    state.overlayHeight, state.overlayTint, state.overlayTexture, state.lightCoords);
         }
     }
 
@@ -183,7 +196,7 @@ public class ModCauldronBlockEntityRenderer implements BlockEntityRenderer<ModCa
     ) {
         TextureAtlasSprite sprite = Minecraft.getInstance()
                 .getAtlasManager()
-                .getAtlasOrThrow(AtlasIds.BLOCKS)  // minecraft:blocks
+                .getAtlasOrThrow(AtlasIds.BLOCKS)
                 .getSprite(texture);
 
         int a = (argb >> 24) & 0xFF;
@@ -203,7 +216,6 @@ public class ModCauldronBlockEntityRenderer implements BlockEntityRenderer<ModCa
         float u0 = sprite.getU0(), u1 = sprite.getU1();
         float v0 = sprite.getV0(), v1 = sprite.getV1();
 
-        // порядок вершин: для верхней грани смотрящей вверх
         buffer.addVertex(pose.pose(), x0, y, z0).setColor(r, g, b, a).setUv(u0, v0)
                 .setOverlay(OverlayTexture.NO_OVERLAY).setLight(lightCoords).setNormal(pose, 0f, 1f, 0f);
         buffer.addVertex(pose.pose(), x0, y, z1).setColor(r, g, b, a).setUv(u0, v1)

@@ -1,0 +1,9 @@
+{
+  "texture": "minecraft:block/lava_still",
+  "pour_bucket_item": "minecraft:lava_bucket",
+  "collect_bucket_item": "minecraft:lava_bucket",
+  "fill_sound": "minecraft:item.bucket.empty_lava",
+  "empty_sound": "minecraft:item.bucket.fill_lava",
+  "group": "molten",
+  "light_level": 10
+}

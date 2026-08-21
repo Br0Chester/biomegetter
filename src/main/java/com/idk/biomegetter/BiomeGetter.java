@@ -2,8 +2,7 @@ package com.idk.biomegetter;
 
 import com.idk.biomegetter.block.ModBlockEntities;
 import com.idk.biomegetter.block.ModBlocks;
-import com.idk.biomegetter.block.custom.cauldron.data.CauldronJuiceTypeLoader;
-import com.idk.biomegetter.block.custom.cauldron.data.CauldronPressableSolidLoader;
+import com.idk.biomegetter.block.custom.cauldron.data.*;
 import com.idk.biomegetter.creativemodetab.ModCreativeModeTabs;
 import com.idk.biomegetter.datagen.ModBlockTagsProvider;
 import com.idk.biomegetter.entity.ModEntities;
@@ -36,8 +35,19 @@ public class BiomeGetter implements ModInitializer {
         ModCreativeModeTabs.registerModCreativeModeTabs();
         ModEntities.registerModEntityTypes();
         ModEntities.registerAttributes();
-        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronJuiceTypeLoader());
-        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronPressableSolidLoader());
+//        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronJuiceTypeLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronLiquidReactionLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronSolidReactionLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronLiquidComponentLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronSolidComponentLoader());
+
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronRecipeLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronSoupSpiceLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronIngredientEffectLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronSoupProcessLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronSoupCategoryLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronSoupIngredientLoader());
+
     }
 
     public static Identifier id(String path) {

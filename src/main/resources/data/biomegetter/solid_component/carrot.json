@@ -1,0 +1,10 @@
+{
+  "input_item": "minecraft:carrot",
+  "input_count": 1,
+  "group": "organic",
+  "texture": "minecraft:block/pumpkin_top",
+  "returns_empty_bucket": false,
+  "output_item": "minecraft:carrot",
+  "output_count": 1,
+  "place_sound": "minecraft:item.bucket.empty_powder_snow"
+}

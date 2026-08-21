@@ -1,0 +1,11 @@
+{
+  "input_item": "minecraft:glow_berries",
+  "input_count": 1,
+  "group": "organic",
+  "texture": "minecraft:block/cobblestone",
+  "output_item": "minecraft:glow_berries",
+  "output_count": 1,
+  "produces_juice": "biomegetter:glow_berry_juice",
+  "place_sound": "minecraft:block.honey_block.place",
+  "light_level": 5
+}

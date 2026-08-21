@@ -1,21 +1,20 @@
 package com.idk.biomegetter.block.custom;
 
+import com.idk.biomegetter.BiomeGetter;
 import com.idk.biomegetter.block.ModBlockEntities;
-import com.idk.biomegetter.block.custom.cauldron.CauldronContentType;
-import com.idk.biomegetter.block.custom.cauldron.CauldronContentTypes;
-import com.idk.biomegetter.block.custom.cauldron.data.CauldronPressableSolidLoader;
-import com.idk.biomegetter.block.custom.cauldron.data.PressableSolid;
+import com.idk.biomegetter.block.custom.cauldron.data.*;
 import com.idk.biomegetter.block.entity.ModCauldronBlockEntity;
-import com.idk.biomegetter.block.entity.ModCauldronBlockEntity.Content;
 import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.cauldron.CauldronInteraction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.ItemTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.util.Util;
 import net.minecraft.world.InteractionHand;
@@ -30,15 +29,16 @@ import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.alchemy.Potions;
 import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.*;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.EnumProperty;
-import net.minecraft.world.level.block.state.properties.IntegerProperty;
+import net.minecraft.world.level.gameevent.GameEvent;
+import net.minecraft.world.level.material.Fluid;
+import net.minecraft.world.level.material.Fluids;
 import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
@@ -47,30 +47,29 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Единственный класс нашего котла. Тип содержимого — значение блокстейта CONTENT,
- * а не отдельный Java-класс. Поведение каждого типа жидкости описано таблицей
- * в CauldronContentTypes — добавление новой жидкости не требует нового класса.
- * Полностью независим от ванильных CauldronInteraction/LayeredCauldronBlock —
- * никогда не подменяется на ванильный блок.
+ * Единственный класс нашего котла. Не хранит содержимое в blockstate — всё содержимое
+ * (жидкостный и твёрдый стеки) живёт в {@link ModCauldronBlockEntity}.
  */
 public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlock {
-
-    public static final EnumProperty<Content> CONTENT = EnumProperty.create("content", Content.class);
 
     private static final VoxelShape[] FILLED_SHAPES = Util.make(() -> Block.boxes(
             3, level -> Shapes.or(AbstractCauldronBlock.SHAPE, Block.column(12.0, 4.0, 6.0 + (level + 1) * 3.0))
     ));
 
-    public static final IntegerProperty BERRY_LEVEL = IntegerProperty.create("berry_level", 0, 3);
-
     private static final MapCodec<ModCauldronBlock> CODEC = simpleCodec(ModCauldronBlock::new);
+
+    /**
+     * Заглушка для соли — до появления отдельного предмета в моде. Соль — обычный
+     * solid_component (см. data/biomegetter/solid_component/salt.json, input_item —
+     * дубовая кнопка), но во время сбора ингредиентов супа (isCollectingIngredients())
+     * перехватывается ЗДЕСЬ раньше общего пункта 6 и действует мгновенно (как разовая
+     * специя), не попадая в твёрдый стек.
+     */
+    private static final Item SALT_ITEM = Items.OAK_BUTTON;
 
     public ModCauldronBlock(Properties properties) {
         super(properties, new CauldronInteraction.Dispatcher()); // не используется — весь интеракт свой, ниже
-        this.registerDefaultState(this.stateDefinition.any()
-                .setValue(BlockStateProperties.LEVEL_CAULDRON, 1)
-                .setValue(CONTENT, Content.EMPTY)
-                .setValue(BERRY_LEVEL, 0));
+        this.registerDefaultState(this.stateDefinition.any());
     }
 
     @Override
@@ -80,49 +79,38 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(BlockStateProperties.LEVEL_CAULDRON, CONTENT, BERRY_LEVEL);
+        // Нет собственных blockstate-свойств — весь фактический контент хранится в BlockEntity
     }
 
     @Override
     public boolean isFull(BlockState state) {
-        return state.getValue(CONTENT) != Content.EMPTY && state.getValue(BlockStateProperties.LEVEL_CAULDRON) == 3;
+        return false;
     }
 
     @Override
     protected double getContentHeight(BlockState state) {
-        if (state.getValue(CONTENT) == Content.EMPTY) {
-            return 0.0;
-        }
-        return (6.0 + state.getValue(BlockStateProperties.LEVEL_CAULDRON) * 3.0) / 16.0;
+        return 0.0;
     }
 
-    //    @Override
-//    protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-//        int berryLevel = state.getValue(BERRY_LEVEL);
-//        if (berryLevel == 0) {
-//            return AbstractCauldronBlock.SHAPE;
-//        }
-//        return Shapes.or(AbstractCauldronBlock.SHAPE, Block.column(12.0, 4.0, 6.0 + berryLevel * 3.0));
-//    }
     @Override
     protected VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
-        int solidLevel = level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron ? cauldron.getSolidLevel() : 0;
-        if (solidLevel == 0) {
+        int solidCount = level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron ? cauldron.getSolidCount() : 0;
+        if (solidCount == 0) {
             return AbstractCauldronBlock.SHAPE;
         }
-        return Shapes.or(AbstractCauldronBlock.SHAPE, Block.column(12.0, 4.0, 6.0 + solidLevel * 3.0));
+        return Shapes.or(AbstractCauldronBlock.SHAPE, Block.column(12.0, 4.0, 6.0 + solidCount * 3.0));
     }
-
 
     @Override
     protected VoxelShape getEntityInsideCollisionShape(BlockState state, BlockGetter level, BlockPos pos, Entity entity) {
-        if (state.getValue(CONTENT) == Content.EMPTY) {
+        int liquidCount = level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron ? cauldron.getLiquidCount() : 0;
+        if (liquidCount == 0) {
             return Shapes.empty();
         }
-        return FILLED_SHAPES[state.getValue(BlockStateProperties.LEVEL_CAULDRON) - 1];
+        return FILLED_SHAPES[liquidCount - 1];
     }
 
-    // ---- Взаимодействия: полностью свои, без единого обращения к ванильным CauldronInteraction ----
+    // ---- Взаимодействия предметом ----
 
     @Override
     protected InteractionResult useItemOn(
@@ -132,99 +120,190 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
         if (!(level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron)) {
             return InteractionResult.TRY_WITH_EMPTY_HAND;
         }
+        if (cauldron.isCooking()) {
+            return InteractionResult.CONSUME; // варится — никакое взаимодействие не проходит
+        }
 
         Item item = itemStack.getItem();
-        Content content = state.getValue(CONTENT);
 
-        // 1. Пустое ведро — забрать содержимое
-        if (item == Items.BUCKET && content != Content.EMPTY) {
-            CauldronContentType type = CauldronContentTypes.get(content);
-            // Общее правило для ЛЮБОЙ жидкости: ведро = ровно 3/3, забрать его можно только из полного котла
-            if (type.fillBucket() != null && state.getValue(BlockStateProperties.LEVEL_CAULDRON) == 3) {
-                if (!level.isClientSide()) {
-                    level.setBlockAndUpdate(pos, state.setValue(CONTENT, Content.EMPTY).setValue(BlockStateProperties.LEVEL_CAULDRON, 1));
-                    level.playSound(null, pos, type.emptySound(), SoundSource.BLOCKS, 1.0F, 1.0F);
-                    swapItem(player, hand, itemStack, new ItemStack(type.fillBucket()));
-                }
-                return InteractionResult.SUCCESS;
-            }
-        }
-
-        // 2. Наполнение подходящим ведром
-        for (CauldronContentType type : CauldronContentTypes.all()) {
-            if (type.fillBucket() == item && (content == Content.EMPTY || content == type.id())) {
-                if (!level.isClientSide()) {
-                    level.setBlockAndUpdate(pos, state.setValue(CONTENT, type.id())
-                            .setValue(CONTENT, type.id())
-                            .setValue(BlockStateProperties.LEVEL_CAULDRON, 3));
-                    level.playSound(null, pos, type.fillSound(), SoundSource.BLOCKS, 1.0F, 1.0F);
-                    swapItem(player, hand, itemStack, new ItemStack(Items.BUCKET));
-                }
-                return InteractionResult.SUCCESS;
-            }
-        }
-
-        // 3. Бутылка — только вода, уменьшает уровень (своя логика, не lowerFillLevel!)
-        if (item == Items.GLASS_BOTTLE && content == Content.WATER) {
+        // 0. Деревянная миска — забор ГОТОВОГО СУПА по трети (аналогично ведру для обычной
+        //    жидкости): верхний слой должен быть LiquidLayer.Soup. ВАЖНО: миска должна быть
+        //    именно ПУСТОЙ (без компонентов) — иначе уже наполненная суп-миска тоже проходила
+        //    бы проверку "item == Items.BOWL" (тип предмета у нашего супа тот же Items.BOWL,
+        //    просто с навешенными компонентами) и позволяла бесконечно зачерпывать котёл, не
+        //    нуждаясь в пустой миске вообще.
+        if (item == Items.BOWL && itemStack.getComponentsPatch().isEmpty()
+                && cauldron.getTopLiquidLayer() instanceof ModCauldronBlockEntity.LiquidLayer.Soup soup) {
             if (!level.isClientSide()) {
-                lowerOrEmpty(level, pos, state);
-                level.playSound(null, pos, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0F, 1.0F);
-                swapItem(player, hand, itemStack, PotionContents.createItemStack(Items.POTION, Potions.WATER));
+                cauldron.removeTopLiquidLayer();
+                ItemStack soupStack = ModCauldronBlockEntity.toItemStack(soup.data());
+                level.playSound(null, pos, SoundEvents.HONEY_BLOCK_FALL, SoundSource.BLOCKS, 1.0F, 1.0F); // TODO: подобрать звук под суп
+                swapItem(player, hand, itemStack, soupStack);
             }
             return InteractionResult.SUCCESS;
         }
 
-        // 4. Снятие красителя с кожаных вещей — только вода
-        if (content == Content.WATER && itemStack.get(DataComponents.DYED_COLOR) != null) {
+        // 1. Пустое ведро — забор содержимого, только если ровно 3/3 ОДНОГО типа и это НЕ суп
+        //    (суп забирается только миской, см. пункт 0). Сначала жидкость, затем твёрдое.
+        if (item == Items.BUCKET) {
+            if (!(cauldron.getTopLiquidLayer() instanceof ModCauldronBlockEntity.LiquidLayer.Soup) && cauldron.isLiquidUniformFull()) {
+                ModCauldronBlockEntity.LiquidLayer top = cauldron.getTopLiquidLayer();
+                if (!level.isClientSide()) {
+                    cauldron.takeAllLiquid();
+                    if (top instanceof ModCauldronBlockEntity.LiquidLayer.Liquid liquid) {
+                        LiquidComponentType type = CauldronLiquidComponentLoader.get(liquid.typeId());
+                        level.playSound(null, pos, type.emptySound(), SoundSource.BLOCKS, 1.0F, 1.0F);
+                        swapItem(player, hand, itemStack, new ItemStack(type.collectBucketItem()));
+                    } else {
+                        level.playSound(null, pos, SoundEvents.BUCKET_FILL_LAVA, SoundSource.BLOCKS, 1.0F, 1.0F);
+                        swapItem(player, hand, itemStack, new ItemStack(Items.LAVA_BUCKET));
+                    }
+                }
+                return InteractionResult.SUCCESS;
+            }
+            // не 3/3 одного типа (или это суп) — ведро не срабатывает, падаем в TRY_WITH_EMPTY_HAND
+        }
+
+        // 2. Наполнение ведром — реактивно (см. applyLiquidContact в BE). Whitelist
+        //    (isIngredientAllowed) действует только во время сбора ингредиентов супа.
+        Identifier liquidTypeId = CauldronLiquidComponentLoader.getIdByPourBucketItem(item);
+        if (liquidTypeId != null && cauldron.isIngredientAllowed(liquidTypeId)) {
+            LiquidComponentType type = CauldronLiquidComponentLoader.get(liquidTypeId);
+            if (!level.isClientSide()) {
+                int burned = cauldron.applyLiquidContact(liquidTypeId, 3);
+                level.playSound(null, pos, type.fillSound(), SoundSource.BLOCKS, 1.0F, 1.0F);
+                swapItem(player, hand, itemStack, new ItemStack(Items.BUCKET));
+                dropCobblestone(level, pos, burned);
+            }
+            return InteractionResult.SUCCESS;
+        }
+
+        if (item == Items.LAVA_BUCKET) {
+            if (!level.isClientSide()) {
+                int burned = cauldron.applyLiquidContact(BiomeGetter.id("lava"), 3);
+                level.playSound(null, pos, burned > 0 ? SoundEvents.FIRE_EXTINGUISH : SoundEvents.BUCKET_EMPTY_LAVA, SoundSource.BLOCKS, 1.0F, 1.0F);
+                swapItem(player, hand, itemStack, new ItemStack(Items.BUCKET));
+                dropCobblestone(level, pos, burned);
+            }
+            return InteractionResult.SUCCESS;
+        }
+
+        // 3. Пустая бутылка — забирает верхний слой любой ОБЫЧНОЙ жидкости (не суп), без реакции
+        if (item == Items.GLASS_BOTTLE
+                && cauldron.getTopLiquidLayer() instanceof ModCauldronBlockEntity.LiquidLayer.Liquid liquid) {
+            LiquidComponentType type = CauldronLiquidComponentLoader.get(liquid.typeId());
+            if (!level.isClientSide()) {
+                cauldron.removeTopLiquidLayer();
+                level.playSound(null, pos, SoundEvents.BOTTLE_FILL, SoundSource.BLOCKS, 1.0F, 1.0F);
+                Item resultItem = type != null ? type.collectBottleItem().orElse(null) : null;
+                ItemStack result = resultItem != null
+                        ? new ItemStack(resultItem)
+                        : PotionContents.createItemStack(Items.POTION, Potions.WATER);
+                swapItem(player, hand, itemStack, result);
+            }
+            return InteractionResult.SUCCESS;
+        }
+
+        // 3b. Бутылка воды — наливает 1 слой воды (реактивно, как и вёдра). Whitelist
+        //     действует только во время сбора ингредиентов супа.
+        if (isWaterBottle(itemStack) && cauldron.isIngredientAllowed(ModCauldronBlockEntity.WATER_COMPONENT_ID)) {
+            if (!level.isClientSide()) {
+                int burned = cauldron.applyLiquidContact(BiomeGetter.id("water"), 1);
+                level.playSound(null, pos, SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0F, 1.0F);
+                swapItem(player, hand, itemStack, new ItemStack(Items.GLASS_BOTTLE));
+                dropCobblestone(level, pos, burned);
+            }
+            return InteractionResult.SUCCESS;
+        }
+
+        // 4. Снятие красителя с кожаных вещей — только если верхний слой это чистая вода
+        if (itemStack.get(DataComponents.DYED_COLOR) != null
+                && cauldron.getTopLiquidLayer() instanceof ModCauldronBlockEntity.LiquidLayer.Liquid liquid
+                && liquid.typeId().equals(ModCauldronBlockEntity.WATER_COMPONENT_ID)) {
             if (!level.isClientSide()) {
                 itemStack.remove(DataComponents.DYED_COLOR);
-                lowerOrEmpty(level, pos, state);
+                cauldron.removeTopLiquidLayer();
                 level.playSound(null, pos, SoundEvents.GENERIC_SPLASH, SoundSource.BLOCKS, 1.0F, 1.0F);
             }
             return InteractionResult.SUCCESS;
         }
 
-        // 5.Наполнение сладкими ягодами
-//        if (item == Items.SWEET_BERRIES) {
-//            int berryLevel = state.getValue(BERRY_LEVEL);
-////            Content content = state.getValue(CONTENT);
-//            boolean canAddBerries = berryLevel < 3
-//                    && (content == Content.EMPTY || content == Content.JUICE)
-//                    && !(content == Content.JUICE && state.getValue(BlockStateProperties.LEVEL_CAULDRON) == 3);
-//            if (canAddBerries) {
-//                if (!level.isClientSide()) {
-//                    level.setBlockAndUpdate(pos, state.setValue(BERRY_LEVEL, berryLevel + 1));
-//                    level.playSound(null, pos, SoundEvents.HONEY_BLOCK_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F);
-//                    itemStack.shrink(1);
-//                }
-//                return InteractionResult.SUCCESS;
-//            }
-//        }
-        if (item == Items.SWEET_BERRIES) {
-            PressableSolid solid = CauldronPressableSolidLoader.getByItem(item);
-            if (solid != null && cauldron.canAddSolid(solid.producesJuice())) {
+        // 5. Соль — только во время сбора ингредиентов супа: срабатывает мгновенно, НЕ ложится
+        //    в твёрдый стек. Вне этого контекста проваливается ниже и обрабатывается как
+        //    обычный solid_component (пункт 6, см. data/biomegetter/solid_component/salt.json).
+        if (item == SALT_ITEM && cauldron.isCollectingIngredients()) {
+            if (!level.isClientSide()) {
+                if (cauldron.useSalt()) {
+                    level.playSound(null, pos, SoundEvents.GENERIC_SPLASH, SoundSource.BLOCKS, 1.0F, 1.0F); // TODO: подобрать звук под соль
+                    if (!player.getAbilities().instabuild) itemStack.shrink(1);
+                }
+            }
+            return InteractionResult.SUCCESS;
+        }
+
+        // 5b. Специя — только во время сбора ингредиентов супа, 1 раз за варку. Список специй —
+        //     data/biomegetter/soup_spice/*.json (см. CauldronSoupSpiceLoader).
+        if (cauldron.isCollectingIngredients()) {
+            Identifier spiceId = CauldronSoupSpiceLoader.getIdByInputItem(item);
+            if (spiceId != null) {
                 if (!level.isClientSide()) {
-                    cauldron.addSolid(solid);
-                    level.playSound(null, pos, SoundEvents.HONEY_BLOCK_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F);
-                    itemStack.shrink(1);
+                    boolean used = cauldron.useSpice(spiceId);
+                    BiomeGetter.LOGGER.info("Cauldron soup: spice {} matched item {}, useSpice()={}", spiceId, item, used);
+                    if (used) {
+                        level.playSound(null, pos, SoundEvents.HONEY_BLOCK_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F); // TODO: подобрать звук под специю
+                        if (!player.getAbilities().instabuild) itemStack.shrink(1);
+                    }
                 }
                 return InteractionResult.SUCCESS;
             }
         }
 
+        // 6. Универсальный обработчик твёрдых компонентов — полностью датапак-driven.
+        //    Whitelist (isIngredientAllowed) действует только во время сбора ингредиентов супа.
+        Identifier solidTypeId = CauldronSolidComponentLoader.getIdByInputItem(item);
+        if (solidTypeId != null && cauldron.isIngredientAllowed(solidTypeId)) {
+            SolidComponentType type = CauldronSolidComponentLoader.get(solidTypeId);
+            if (type != null && itemStack.getCount() >= type.inputCount()) {
+                boolean handled = tryAddSolidOrRejectBurning(level, pos, cauldron, type.group(), () -> {
+                    cauldron.addSolid(solidTypeId);
+                    level.playSound(null, pos, type.placeSound(), SoundSource.BLOCKS, 1.0F, 1.0F);
+                    if (type.returnsEmptyBucket()) {
+                        swapItem(player, hand, itemStack, new ItemStack(Items.BUCKET));
+                    } else {
+                        itemStack.shrink(type.inputCount());
+                    }
+                });
+                if (handled) return InteractionResult.SUCCESS;
+            }
+        }
+//        else if (cauldron.isCollectingIngredients()) {
+//            // Диагностика: во время сбора ингредиентов супа предмет не принят — логируем ПОЧЕМУ,
+//            // чтобы не гадать между "не зарегистрирован как solid_component вообще" и
+//            // "зарегистрирован, но нет соответствующего soup_ingredient".
+//            if (solidTypeId == null) {
+//                BiomeGetter.LOGGER.info("Cauldron soup: item {} not registered as solid_component at all", item);
+//            } else {
+//                BiomeGetter.LOGGER.info("Cauldron soup: component {} registered, but not allowed as soup_ingredient (isIngredientAllowed=false)", solidTypeId);
+//            }
+//        }
+
         return InteractionResult.TRY_WITH_EMPTY_HAND;
     }
 
-    /**
-     * Уменьшает уровень на 1, либо переводит в EMPTY, если был последний уровень. Наша замена lowerFillLevel.
-     */
-    private static void lowerOrEmpty(Level level, BlockPos pos, BlockState state) {
-        int currentLevel = state.getValue(BlockStateProperties.LEVEL_CAULDRON);
-        if (currentLevel <= 1) {
-            level.setBlockAndUpdate(pos, state.setValue(CONTENT, Content.EMPTY).setValue(BlockStateProperties.LEVEL_CAULDRON, 1));
-        } else {
-            level.setBlockAndUpdate(pos, state.setValue(BlockStateProperties.LEVEL_CAULDRON, currentLevel - 1));
+    private static boolean tryAddSolidOrRejectBurning(
+            Level level, BlockPos pos, ModCauldronBlockEntity cauldron, String solidGroup, Runnable addAction
+    ) {
+        if (cauldron.canAddSolid(solidGroup)) {
+            if (!level.isClientSide()) addAction.run();
+            return true;
         }
+        if (cauldron.reactsWithCurrentLiquid(solidGroup)) {
+            if (!level.isClientSide()) {
+                level.playSound(null, pos, SoundEvents.GENERIC_BURN, SoundSource.BLOCKS, 1.0F, 1.0F);
+            }
+            return true;
+        }
+        return false;
     }
 
     private static void swapItem(Player player, InteractionHand hand, ItemStack original, ItemStack result) {
@@ -238,36 +317,184 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
         }
     }
 
-    // ---- Кипение/урон/партиклы — читаются из таблицы, не по switch ----
+    private static void dropCobblestone(Level level, BlockPos pos, int count) {
+        for (int i = 0; i < count; i++) {
+            popResource(level, pos, new ItemStack(Items.COBBLESTONE));
+        }
+    }
+
+    private static boolean isWaterBottle(ItemStack stack) {
+        if (!stack.is(Items.POTION)) return false;
+        PotionContents contents = stack.get(DataComponents.POTION_CONTENTS);
+        return contents != null && contents.is(Potions.WATER);
+    }
+
+    // ---- Взаимодействие пустой рукой: Shift+ПКМ / перемешивание ----
+
+    @Override
+    protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
+        if (!(level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron)) {
+            return InteractionResult.PASS;
+        }
+        if (cauldron.isCooking()) {
+            return InteractionResult.PASS;
+        }
+
+        if (player.isShiftKeyDown()) {
+            ItemStack extracted = cauldron.extractTopSolid();
+            if (extracted == null) {
+                return InteractionResult.PASS;
+            }
+            if (!level.isClientSide()) {
+                level.playSound(null, pos, SoundEvents.HONEY_BLOCK_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F);
+                if (!player.getInventory().add(extracted)) {
+                    player.drop(extracted, false);
+                }
+            }
+            return InteractionResult.SUCCESS;
+        }
+
+        if (cauldron.hasBlockAbove()) {
+            return InteractionResult.PASS;
+        }
+        ItemStack heldItem = player.getMainHandItem();
+        if (!isStirringTool(heldItem)) {
+            return InteractionResult.PASS;
+        }
+
+        if (!level.isClientSide()) {
+            if (cauldron.isCooking()) {
+                // варится автоматически — мешать нечего
+            } else if (cauldron.isAwaitingIngredient()) {
+                cauldron.tryAdvanceCurrentStage();
+            } else if (cauldron.canStartSoup()) {
+                cauldron.startSoupBrewing();
+            } else {
+                logStirredState(pos, cauldron);
+                Identifier recipeId = CauldronRecipeLoader.findMatching(level, pos, cauldron);
+                if (recipeId != null) {
+                    CauldronRecipe recipe = CauldronRecipeLoader.get(recipeId);
+                    Entity consumedEntity = recipe.requiredEntity().isPresent()
+                            ? CauldronRecipeLoader.findMatchingEntity(level, pos, recipe.requiredEntity().get().entityType())
+                            : null;
+                    cauldron.startBrewing(recipeId, consumedEntity);
+                }
+            }
+        }
+        return InteractionResult.SUCCESS;
+    }
+
+    private static boolean isStirringTool(ItemStack stack) {
+        return stack.is(Items.STICK)
+                || stack.is(ItemTags.SAPLINGS)
+                || stack.is(ItemTags.PICKAXES)
+                || stack.is(ItemTags.AXES)
+                || stack.is(ItemTags.SHOVELS)
+                || stack.is(ItemTags.HOES)
+                || stack.is(ItemTags.SWORDS)
+                || stack.is(ItemTags.SPEARS);
+    }
+
+    private static void logStirredState(BlockPos pos, ModCauldronBlockEntity cauldron) {
+        BiomeGetter.LOGGER.info(
+                "Cauldron stirred at {}: liquid_layers={}, solid_entries={}, heated={}, light={}",
+                pos,
+                cauldron.getLiquidLayers(),
+                cauldron.getSolidSlot(),
+                cauldron.isHeatedBelow(),
+                cauldron.getLightLevel()
+        );
+    }
+
+    // ---- Разрушение блока ----
+
+    @Override
+    public BlockState playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+        if (!level.isClientSide() && level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron) {
+            for (ItemStack drop : cauldron.drainAllSolids()) {
+                popResource(level, pos, drop);
+            }
+        }
+        return super.playerWillDestroy(level, pos, state, player);
+    }
+
+    // ---- Дождь / снегопад ----
+
+    private static boolean shouldHandlePrecipitation(final Level level, final Biome.Precipitation precipitation) {
+        if (precipitation == Biome.Precipitation.RAIN) {
+            return level.getRandom().nextFloat() < 0.05F;
+        } else {
+            return precipitation == Biome.Precipitation.SNOW ? level.getRandom().nextFloat() < 0.1F : false;
+        }
+    }
+
+    @Override
+    public void handlePrecipitation(BlockState state, Level level, BlockPos pos, Biome.Precipitation precipitation) {
+        if (!shouldHandlePrecipitation(level, precipitation)) {
+            return;
+        }
+        if (!(level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron)) {
+            return;
+        }
+
+        if (precipitation == Biome.Precipitation.RAIN) {
+            int burned = cauldron.applyLiquidContact(BiomeGetter.id("water"), 1);
+            level.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(state));
+            dropCobblestone(level, pos, burned);
+        } else if (precipitation == Biome.Precipitation.SNOW) {
+            SolidComponentType snowType = CauldronSolidComponentLoader.get(ModCauldronBlockEntity.SNOW_COMPONENT_ID);
+            if (snowType != null && cauldron.canAddSolid(snowType.group())) {
+                cauldron.addSolid(ModCauldronBlockEntity.SNOW_COMPONENT_ID);
+                level.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(state));
+            }
+        }
+    }
+
+    // ---- Дрипстон ----
+
+    @Override
+    protected boolean canReceiveStalactiteDrip(Fluid fluid) {
+        return fluid == Fluids.WATER || fluid == Fluids.LAVA;
+    }
+
+    @Override
+    protected void receiveStalactiteDrip(BlockState state, Level level, BlockPos pos, Fluid fluid) {
+        if (!(level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron)) {
+            return;
+        }
+
+        int burned;
+        if (fluid == Fluids.LAVA) {
+            burned = cauldron.applyLiquidContact(BiomeGetter.id("lava"), 3);
+        } else {
+            burned = cauldron.applyLiquidContact(BiomeGetter.id("water"), 1);
+        }
+        level.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(state));
+        level.levelEvent(1047, pos, 0);
+        dropCobblestone(level, pos, burned);
+    }
+
+    // ---- Кипение/партиклы ----
 
     @Override
     protected void entityInside(
             BlockState state, Level level, BlockPos pos, Entity entity,
             InsideBlockEffectApplier effectApplier, boolean isPrecise
     ) {
-        Content content = state.getValue(CONTENT);
-        if (content == Content.EMPTY) {
+        if (!(level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron) || cauldron.getLiquidCount() == 0) {
             return;
         }
-        CauldronContentType type = CauldronContentTypes.get(content);
-        if (!type.damagesEntities() || !(level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron)) {
-            return;
-        }
-        boolean shouldDamage = !type.requiresHeatToDamage() || cauldron.isHeatedBelow();
-        if (shouldDamage && level instanceof ServerLevel serverLevel) {
-            entity.hurtServer(serverLevel, level.damageSources().hotFloor(), type.damageAmount());
+        if (cauldron.isHeatedBelow() && level instanceof ServerLevel serverLevel) {
+            entity.hurtServer(serverLevel, level.damageSources().hotFloor(), 2.0F);
         }
     }
 
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
-        Content content = state.getValue(CONTENT);
-        if (content == Content.EMPTY) {
+        if (!(level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron) || cauldron.getLiquidCount() == 0) {
             return;
         }
-        CauldronContentType type = CauldronContentTypes.get(content);
-        if (level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron
-                && (!type.requiresHeatToDamage() || cauldron.isHeatedBelow())) {
+        if (cauldron.isHeatedBelow()) {
             double x = pos.getX() + 0.5;
             double y = pos.getY() + 0.9;
             double z = pos.getZ() + 0.5;
@@ -276,7 +503,8 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
     }
 
     @Override
-    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block neighborBlock, @Nullable Orientation orientation, boolean movedByPiston) {
+    public void neighborChanged(BlockState state, Level level, BlockPos pos, Block
+            neighborBlock, @Nullable Orientation orientation, boolean movedByPiston) {
         super.neighborChanged(state, level, pos, neighborBlock, orientation, movedByPiston);
         if (level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron) {
             BlockState above = level.getBlockState(pos.above());
@@ -293,41 +521,18 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
                 || (below.getBlock() instanceof CampfireBlock && below.getValue(CampfireBlock.LIT));
     }
 
-    //    @Override
-//    public void fallOn(Level level, BlockState state, BlockPos pos, Entity entity, double fallDistance) {
-//        int berryLevel = state.getValue(BERRY_LEVEL);
-//        if (berryLevel > 0 && fallDistance > 0.5) { // отсекаем обычную ходьбу, только заметное падение/прыжок
-//            if (!level.isClientSide() && level instanceof ServerLevel serverLevel) {
-//                int newBerryLevel = berryLevel - 1;
-//                BlockState newState = state.setValue(BERRY_LEVEL, newBerryLevel);
-//
-//                if (newBerryLevel == 0) {
-//                    Content content = state.getValue(CONTENT);
-//                    int currentJuiceLevel = content == Content.JUICE ? state.getValue(BlockStateProperties.LEVEL_CAULDRON) : 0;
-//                    int newJuiceLevel = Math.min(3, currentJuiceLevel + 1);
-//                    newState = newState.setValue(CONTENT, Content.JUICE).setValue(BlockStateProperties.LEVEL_CAULDRON, newJuiceLevel);
-//                    popResource(level, pos, new ItemStack(Items.SUGAR));
-//                }
-//
-//                level.setBlockAndUpdate(pos, newState);
-//                serverLevel.sendParticles(ParticleTypes.CRIMSON_SPORE, pos.getX() + 0.5, pos.getY() + 0.6, pos.getZ() + 0.5, 12, 0.3, 0.2, 0.3, 0.05);
-//                level.playSound(null, pos, SoundEvents.HONEY_BLOCK_FALL, SoundSource.BLOCKS, 1.0F, 1.0F);
-//            }
-//            entity.causeFallDamage((float) fallDistance, 1.0F, entity.damageSources().fall()); // сохраняем обычный урон от падения
-//            return;
-//        }
-//        super.fallOn(level, state, pos, entity, fallDistance);
-//    }
     @Override
     public void fallOn(Level level, BlockState state, BlockPos pos, Entity entity, double fallDistance) {
-        if (level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron && cauldron.getSolidLevel() > 0 && fallDistance > 0.5) {
+        if (level.getBlockEntity(pos) instanceof ModCauldronBlockEntity cauldron
+                && cauldron.getSolidCount() > 0 && fallDistance > 0.5) {
             if (!level.isClientSide() && level instanceof ServerLevel serverLevel) {
-                boolean finished = cauldron.pressSolidOnce();
-                if (finished) {
+                ModCauldronBlockEntity.PressOutcome outcome = cauldron.pressTopComponent();
+                if (outcome.pressed()) {
                     popResource(level, pos, new ItemStack(Items.SUGAR));
+                    dropCobblestone(level, pos, outcome.burnedThirds());
+                    serverLevel.sendParticles(ParticleTypes.CRIMSON_SPORE, pos.getX() + 0.5, pos.getY() + 0.6, pos.getZ() + 0.5, 12, 0.3, 0.2, 0.3, 0.05);
+                    level.playSound(null, pos, SoundEvents.HONEY_BLOCK_FALL, SoundSource.BLOCKS, 1.0F, 1.0F);
                 }
-                serverLevel.sendParticles(ParticleTypes.CRIMSON_SPORE, pos.getX() + 0.5, pos.getY() + 0.6, pos.getZ() + 0.5, 12, 0.3, 0.2, 0.3, 0.05);
-                level.playSound(null, pos, SoundEvents.HONEY_BLOCK_FALL, SoundSource.BLOCKS, 1.0F, 1.0F);
             }
             entity.causeFallDamage((float) fallDistance, 1.0F, entity.damageSources().fall());
             return;
@@ -335,10 +540,10 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
         super.fallOn(level, state, pos, entity, fallDistance);
     }
 
-
     @Nullable
     @Override
-    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
+    public <T extends
+            BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
         if (level.isClientSide()) {
             return null;
         }
@@ -350,36 +555,34 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
     }
 
     private static void serverTick(Level level, BlockPos pos, BlockState state, ModCauldronBlockEntity cauldron) {
-        // Живая проверка каждый тик — подстраховка на случай, если neighborChanged не сработал
-        // (например, котёл поставили НА УЖЕ существующий блок нагрева — сосед в этот момент "не менялся",
-        // и neighborChanged в принципе не вызывается движком в такой ситуации)
+        cauldron.updateLightSource();
+
         cauldron.setHeatedBelow(isHeatSource(level.getBlockState(pos.below())));
         BlockState above = level.getBlockState(pos.above());
         cauldron.setHasBlockAbove(!above.isAir());
         cauldron.setPowderSnowAbove(above.is(Blocks.POWDER_SNOW));
+        cauldron.setLightLevel(level.getMaxLocalRawBrightness(pos));
 
-        // Таяние рыхлого снега сверху — независимо от того, что внутри котла
+        cauldron.tickBrewing();
+
         if (cauldron.isHeatedBelow() && cauldron.isPowderSnowAbove() && cauldron.tickMelt()) {
             level.setBlockAndUpdate(pos.above(), Blocks.WATER.defaultBlockState());
         }
 
-        Content content = state.getValue(CONTENT);
-
-        if (content == Content.EMPTY) {
-            return;
-        }
-        CauldronContentType type = CauldronContentTypes.get(content);
-        // Таяние содержимого котла (например, рыхлого снега) при нагреве — не зависит от того, накрыт ли котёл сверху
-        if (type.meltsIntoWhenHeated() != null && cauldron.isHeatedBelow() && cauldron.tickEvaporation()) {
-            level.setBlockAndUpdate(pos, state.setValue(CONTENT, type.meltsIntoWhenHeated()));
+        if (!cauldron.isHeatedBelow()) {
             return;
         }
 
-        if (!type.evaporates() || !cauldron.isHeatedBelow() || cauldron.hasBlockAbove()) {
-            return;
-        }
-        if (cauldron.tickEvaporation()) {
-            lowerOrEmpty(level, pos, state);
+        int burned = cauldron.meltSnow();
+        dropCobblestone(level, pos, burned);
+
+        // Испарение верхнего слоя жидкости при кипении без крышки (обычное "усушка", не связано
+        // с лавой) — ГОТОВЫЙ СУП (LiquidLayer.Soup) из этого механизма исключён по вашей просьбе:
+        // сваренный суп не должен "усыхать" сам по себе.
+        if (cauldron.getLiquidCount() > 0 && !cauldron.hasBlockAbove()
+                && !(cauldron.getTopLiquidLayer() instanceof ModCauldronBlockEntity.LiquidLayer.Soup)
+                && cauldron.tickEvaporation()) {
+            cauldron.removeTopLiquidLayer();
         }
     }
 
