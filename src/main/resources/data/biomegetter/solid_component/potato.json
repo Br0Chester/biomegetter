@@ -2,6 +2,11 @@
   "input_item": "minecraft:potato",
   "input_count": 1,
   "group": "organic",
+  "tags": [
+    "vegetable",
+    "earth",
+    "ender"
+  ],
   "texture": "minecraft:block/hay_block_side",
   "returns_empty_bucket": false,
   "output_item": "minecraft:potato",

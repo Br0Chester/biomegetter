@@ -1,0 +1,15 @@
+{
+  "texture_still": "minecraft:block/water_still",
+  "texture_flowing": "minecraft:block/water_flow",
+  "tint_color": "#FF88CCFF",
+  "gravity_mode": "normal",
+  "max_up_distance": 10,
+  "swim_effects": [
+    {
+      "effect": "minecraft:levitation",
+      "amplifier": 0,
+      "duration_ticks": 20,
+      "max_amplifier": 0
+    }
+  ]
+}

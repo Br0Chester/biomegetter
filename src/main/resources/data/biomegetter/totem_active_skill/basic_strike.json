@@ -1,0 +1,29 @@
+{
+  "name": "totem.skill.basic_strike",
+  "tags": [
+    "fire"
+  ],
+  "stats": {
+    "power": 5.0,
+    "debuff_duration_ticks": 100.0,
+    "area_radius": 5.0
+  },
+  "durability_cost": 2,
+  "durability_cost_chance": 1.0,
+  "components": [
+    {
+      "trigger": "on_cast",
+      "delivery": {
+        "type": "self"
+      },
+      "area_shape": {
+        "type": "sphere",
+        "radius_stat": "area_radius"
+      },
+      "effect": {
+        "type": "direct_damage",
+        "debuff_effect": "minecraft:weakness"
+      }
+    }
+  ]
+}

@@ -1,0 +1,4 @@
+{
+  "cook_duration_ticks": 100,
+  "await_timeout_ticks": 600
+}

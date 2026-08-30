@@ -18,6 +18,31 @@
   "conditions": {
     "requires_heated": false
   },
+  "ritual": [
+    "biomegetter:obsidian_frame",
+    "biomegetter:gold_cross"
+  ],
+  "block_consumption": [
+    {
+      "chance": 0.5,
+      "max_blocks": 2,
+      "result_pool": [
+        "minecraft:air"
+      ]
+    },
+    {
+      "chance": 1.0,
+      "max_blocks": 8,
+      "area": [
+        "biomegetter:small_ring",
+        "biomegetter:gold_cross"
+      ],
+      "result_pool": [
+        "minecraft:magma_block",
+        "minecraft:crying_obsidian"
+      ]
+    }
+  ],
   "intermediate_texture": "minecraft:block/water_still",
   "intermediate_tint": "#FFB0E0FF",
   "result_liquid": "biomegetter:ice_cream",

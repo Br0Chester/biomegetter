@@ -1,6 +1,7 @@
 package com.idk.biomegetter.datagen;
 
 import com.idk.biomegetter.block.ModBlocks;
+import com.idk.biomegetter.fluid.ModFluids;
 import com.idk.biomegetter.item.ModItems;
 import net.fabricmc.fabric.api.client.datagen.v1.provider.FabricModelProvider;
 import net.fabricmc.fabric.api.datagen.v1.FabricPackOutput;
@@ -30,5 +31,8 @@ public class ModModelProvider extends FabricModelProvider {
         itemModelGenerators.generateFlatItem(ModItems.UNICORN_SPAWN_EGG, ModelTemplates.FLAT_HANDHELD_ITEM);
         itemModelGenerators.generateFlatItem(ModItems.MEAL, ModelTemplates.FLAT_ITEM);
         itemModelGenerators.generateFlatItem(ModItems.SOUP_BOWL, ModelTemplates.FLAT_ITEM);
+
+        itemModelGenerators.generateFlatItem(ModFluids.ACID.bucket(), ModelTemplates.FLAT_ITEM);
+        itemModelGenerators.generateFlatItem(ModFluids.GEYSER_GAS.bucket(), ModelTemplates.FLAT_ITEM);
     }
 }

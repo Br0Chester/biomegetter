@@ -59,6 +59,19 @@ public class ModCauldronBlockEntityRenderer implements BlockEntityRenderer<ModCa
                 ? LightCoordsUtil.pack(level.getBrightness(LightLayer.BLOCK, pos), level.getBrightness(LightLayer.SKY, pos))
                 : 0;
 
+        // Тотем: рендерится ПЕРЕД любой другой проверкой (isCooking и т.д.), безусловно на
+        // весь период варки тотема (и cook, и await-фазы) — иначе во время cook-фазы (isCooking()
+        // == true) выполнение уходило бы в старую ветку супа/рецепта раньше, чем дойдёт сюда.
+        if (blockEntity.isTotemBrewing()) {
+            state.liquidHeight = 15f / 16f;
+            state.liquidTexture = FALLBACK_TEXTURE; // ЗАГЛУШКА (water_still) — замените на свою
+            state.liquidTint = 0xFFFFFFFF;
+            state.solidHeight = 0f;
+            state.solidTexture = null;
+            state.solidTint = 0xFFFFFFFF;
+            return;
+        }
+
         // ---- Верхний слой жидкости ----
         if (blockEntity.isCooking()) {
             ModCauldronBlockEntity.BrewingState brewing = blockEntity.getBrewing();

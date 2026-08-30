@@ -1,0 +1,33 @@
+{
+  "name": "totem.skill.ice_cage",
+  "tags": [
+    "earth"
+  ],
+  "stats": {
+    "power": 5.0,
+    "debuff_duration_ticks": 100.0,
+    "area_radius": 5.0
+  },
+  "durability_cost": 2,
+  "durability_cost_chance": 1.0,
+  "components": [
+    {
+      "trigger": "on_cast",
+      "delivery": {
+        "type": "block_under"
+      },
+      "area_shape": {
+        "type": "block_hemisphere",
+        "radius_stat": "area_radius",
+        "default_radius": 3.0,
+        "hollow": true
+      },
+      "effect": {
+        "type": "transform_block",
+        "result_block": "minecraft:ice",
+        "duration_ticks": 200,
+        "max_hardness": 5.0
+      }
+    }
+  ]
+}

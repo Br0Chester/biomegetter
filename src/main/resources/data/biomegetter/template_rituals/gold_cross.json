@@ -1,0 +1,33 @@
+{
+  "layers": [
+    {
+      "y_offset": 0,
+      "cauldron_row": 1,
+      "cauldron_col": 1,
+      "pattern": [
+        "___",
+        "_Y_",
+        "___",
+        "___"
+      ]
+    },
+    {
+      "y_offset": -1,
+      "pattern": [
+        "_X_",
+        "X_X",
+        "_X_",
+        "_X_"
+      ]
+    }
+  ],
+  "keys": {
+    "X": {
+      "blocks": [
+        "minecraft:gold_block",
+        "minecraft:gold_ore"
+      ],
+      "tags": []
+    }
+  }
+}

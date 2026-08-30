@@ -1,0 +1,15 @@
+{
+  "tags": [
+    "ender"
+  ],
+  "stats": {
+    "power": 2.0
+  },
+  "durability_cost": 1,
+  "durability_cost_chance": 0.1,
+  "effect": {
+    "type": "arur",
+    "mob_effect": "minecraft:night_vision",
+    "radius": 10.0
+  }
+}

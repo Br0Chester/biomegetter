@@ -1,0 +1,12 @@
+[
+  {
+    "source": "fire",
+    "target": "earth",
+    "relation": 1
+  },
+  {
+    "source": "fire",
+    "target": "water",
+    "relation": -1
+  }
+]

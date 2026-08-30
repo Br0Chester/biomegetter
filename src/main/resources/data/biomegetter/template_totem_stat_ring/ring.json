@@ -1,0 +1,27 @@
+{
+  "level": 1,
+  "modifiers": [
+    {
+      "stat": "power",
+      "multiplier": 1.3
+    }
+  ],
+  "template": {
+    "layers": [
+      {
+        "y_offset": 0,
+        "cauldron_row": 0,
+        "cauldron_col": 0,
+        "pattern": [
+          "Y_",
+          "_X"
+        ]
+      }
+    ],
+    "keys": {
+      "X": {
+        "any_element_block": true
+      }
+    }
+  }
+}

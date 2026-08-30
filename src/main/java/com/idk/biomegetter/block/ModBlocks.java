@@ -42,7 +42,25 @@ public class ModBlocks {
                             .requiresCorrectToolForDrops()
                             .sound(SoundType.BAMBOO)));
 
+    /**
+     * "water_cauldron" — сохраняем существующий id/ассеты. Теперь это БАЗОВЫЙ котёл
+     * (ограничения — см. ModCauldronBlockBasic), не апгрейженный ещё котёл получается через
+     * кузнечный стол (см. UPGRADED_CAULDRON).
+     */
     public static final Block WATER_CAULDRON = registerBlock("water_cauldron",
+            properties -> new com.idk.biomegetter.block.custom.ModCauldronBlockBasic(properties
+                    .strength(2f)
+                    .sound(SoundType.LANTERN)
+                    .noOcclusion()
+                    .randomTicks()));
+
+    /**
+     * Улучшенный котёл — получается смитингом (кузнечный стол + шаблон незеритового улучшения +
+     * слиток незерита из WATER_CAULDRON). Без ограничений на жидкости (сам ModCauldronBlock).
+     * Ассеты (blockstate/item model) временно ссылаются на ту же модель, что и базовый —
+     * замените на свою текстуру, когда будет готова (см. плейсхолдер-json ниже в ответе).
+     */
+    public static final Block UPGRADED_CAULDRON = registerBlock("upgraded_cauldron",
             properties -> new com.idk.biomegetter.block.custom.ModCauldronBlock(properties
                     .strength(2f)
                     .sound(SoundType.LANTERN)

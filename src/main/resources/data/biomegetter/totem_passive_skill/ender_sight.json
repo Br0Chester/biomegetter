@@ -1,0 +1,28 @@
+{
+  "name": "totem.skill.ender_sight",
+  "tags": [
+    "ender"
+  ],
+  "stats": {
+    "power": 2.0
+  },
+  "durability_cost": 1,
+  "durability_cost_chance": 0.1,
+  "components": [
+    {
+      "trigger": "on_cast",
+      "delivery": {
+        "type": "self"
+      },
+      "area_shape": {
+        "type": "disk_horizontal",
+        "radius_stat": "area_radius",
+        "default_radius": 10.0
+      },
+      "effect": {
+        "type": "mob_effect_buff",
+        "mob_effect": "minecraft:night_vision"
+      }
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.data.recipes.RecipeCategory;
 import net.minecraft.data.recipes.RecipeOutput;
 import net.minecraft.data.recipes.RecipeProvider;
+import net.minecraft.data.recipes.SmithingTransformRecipeBuilder;
 import net.minecraft.world.item.crafting.CookingBookCategory;
 import net.minecraft.world.level.ItemLike;
 
@@ -49,6 +50,16 @@ public class ModRecepiesProvider extends FabricRecipeProvider {
 //                        .save(output);
                         //  Если выход у рецепта повторяется дважды, нужно дописывать id
                         .save(output, "way_to_get_wtf");
+
+                // Апгрейд котла: кузнечный стол + шаблон незеритового улучшения + слиток незерита
+                SmithingTransformRecipeBuilder.smithing(
+                                net.minecraft.world.item.crafting.Ingredient.of(net.minecraft.world.item.Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE),
+                                net.minecraft.world.item.crafting.Ingredient.of(ModBlocks.WATER_CAULDRON),
+                                net.minecraft.world.item.crafting.Ingredient.of(net.minecraft.world.item.Items.NETHERITE_INGOT),
+                                RecipeCategory.MISC,
+                                ModBlocks.UPGRADED_CAULDRON.asItem()
+                        ).unlocks("has_netherite_ingot", has(net.minecraft.world.item.Items.NETHERITE_INGOT))
+                        .save(output, getItemName(ModBlocks.UPGRADED_CAULDRON) + "_smithing");
             }
         };
     }

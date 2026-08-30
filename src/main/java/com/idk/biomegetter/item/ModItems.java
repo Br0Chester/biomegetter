@@ -45,6 +45,9 @@ public class ModItems {
     public static final Item SOUP_BOWL = registerItem("soup_bowl",
             properties -> new com.idk.biomegetter.item.custom.SoupBowlItem(properties));
 
+    public static final Item TOTEM = registerItem("totem",
+            properties -> new com.idk.biomegetter.item.custom.TotemItem(properties));
+
     //  Регистрация предмета в потоке
     public static Item registerItem(String name, Function<Item.Properties, Item> function) {
         return Registry.register(BuiltInRegistries.ITEM, Identifier.fromNamespaceAndPath(BiomeGetter.MOD_ID, name),

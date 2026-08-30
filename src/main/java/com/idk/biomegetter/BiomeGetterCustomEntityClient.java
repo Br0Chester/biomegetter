@@ -8,6 +8,7 @@ import com.idk.biomegetter.entity.client.renderer.AllySkeletonRenderer;
 import com.idk.biomegetter.entity.client.renderer.AllyZombieRenderer;
 import com.idk.biomegetter.entity.client.renderer.UnicornBoltRenderer;
 import com.idk.biomegetter.entity.renderer.UnicornEntityRenderer;
+import com.idk.biomegetter.fluid.ModFluids;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderers;
 import net.minecraft.client.renderer.entity.EntityRenderers;
@@ -29,11 +30,35 @@ public class BiomeGetterCustomEntityClient implements ClientModInitializer {
 
         BlockEntityRenderers.register(ModBlockEntities.CAULDRON, ModCauldronBlockEntityRenderer::new);
 
-//        BlockColorRegistry.register(
-//                List.of(new WaterCauldronColorProvider(), new BerryTintProvider()),
-//                ModBlocks.WATER_CAULDRON
-//        );
-
+        registerFluidRender(ModFluids.ACID);
+        registerFluidRender(ModFluids.GEYSER_GAS);
     }
+
+    private static void registerFluidRender(com.idk.biomegetter.fluid.ModFluids.FluidEntry entry) {
+        com.idk.biomegetter.fluid.FluidConfig cfg = com.idk.biomegetter.fluid.ModFluidConfigLoader.get(entry.id());
+        net.minecraft.resources.Identifier stillTexture = cfg != null ? cfg.textureStill()
+                : net.minecraft.resources.Identifier.fromNamespaceAndPath("minecraft", "block/water_still");
+        net.minecraft.resources.Identifier flowingTexture = cfg != null ? cfg.textureFlowing()
+                : net.minecraft.resources.Identifier.fromNamespaceAndPath("minecraft", "block/water_flow");
+        int tint = cfg != null ? cfg.tintColor().orElse(0xFFFFFFFF) : 0xFFFFFFFF;
+
+        net.minecraft.client.resources.model.sprite.Material stillMaterial =
+                new net.minecraft.client.resources.model.sprite.Material(stillTexture);
+        net.minecraft.client.resources.model.sprite.Material flowingMaterial =
+                new net.minecraft.client.resources.model.sprite.Material(flowingTexture);
+
+        net.minecraft.client.color.block.BlockTintSource tintSource = state -> {
+            com.idk.biomegetter.fluid.FluidConfig liveCfg = com.idk.biomegetter.fluid.ModFluidConfigLoader.get(entry.id());
+            return liveCfg != null ? liveCfg.tintColor().orElse(0xFFFFFFFF) : 0xFFFFFFFF;
+        };
+
+        net.minecraft.client.renderer.block.FluidModel.Unbaked model =
+                new net.minecraft.client.renderer.block.FluidModel.Unbaked(stillMaterial, flowingMaterial, null, tintSource);
+
+        net.fabricmc.fabric.api.client.render.fluid.v1.FluidRenderingRegistry.register(
+                entry.still(), entry.flowing(), model
+        );
+    }
+
 
 }

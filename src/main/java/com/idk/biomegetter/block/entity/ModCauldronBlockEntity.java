@@ -4,6 +4,9 @@ import com.idk.biomegetter.BiomeGetter;
 import com.idk.biomegetter.block.custom.cauldron.data.*;
 import com.idk.biomegetter.block.custom.cauldron.data.spec_spices.BuffTransform;
 import com.idk.biomegetter.block.custom.cauldron.data.spec_spices.SoupEatTrigger;
+import com.idk.biomegetter.block.custom.cauldron.data.totem.CauldronTotemStartRingLoader;
+import com.idk.biomegetter.block.custom.cauldron.data.totem.TotemProcessLoader;
+import com.idk.biomegetter.block.custom.cauldron.data.totem.TotemStartRing;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.HolderLookup;
@@ -114,6 +117,39 @@ public class ModCauldronBlockEntity extends BlockEntity {
     private int meltTimer = MELT_INTERVAL_TICKS;
 
     private int lightLevel;
+
+    // ---- Кеш проверки ритуальной структуры (перепроверяется раз в RITUAL_CHECK_INTERVAL_TICKS,
+    // не каждый тик — обход блоков в мире дороже обычных проверок) ----
+    private static final int RITUAL_CHECK_INTERVAL_TICKS = 10;
+    private int ritualCheckCooldown = 0;
+    private boolean cachedRitualSatisfied = true;
+    private List<BlockPos> cachedRitualPositions = List.of();
+
+    // ---- Очередь "поглощения"/трансформации блоков (см. BlockConsumptionRule) ----
+    private static final int CONSUMPTION_STEP_TICKS = 10;   // задержка между обработкой соседних блоков очереди
+    private static final int CONSUMPTION_PLACEMENT_DELAY_TICKS = 2; // задержка между эффектом разрушения и эффектом установки одного и того же блока
+    private static final Identifier AIR_ID = Identifier.fromNamespaceAndPath("minecraft", "air");
+
+    /**
+     * Пара "позиция + свой пул результатов" — каждая запись очереди несёт СВОЙ result_pool, а
+     * не общий на всю очередь. Это устраняет баг: если два разных BlockConsumptionRule
+     * срабатывают на одной стадии ОДНОГО котла, позиции второго правила больше не будут
+     * ошибочно брать пул первого.
+     */
+    private record ConsumptionEntry(BlockPos pos, List<Identifier> pool) {
+    }
+
+    private final java.util.Deque<ConsumptionEntry> consumptionQueue = new java.util.ArrayDeque<>();
+    private int consumptionCooldown = 0;
+
+    @Nullable
+    private BlockPos consumptionAwaitingPlacementPos;
+    @Nullable
+    private Identifier consumptionAwaitingPlacementBlock;
+    private int consumptionPlacementDelay = 0;
+
+    @Nullable
+    private TotemBrewingState totemBrewing;
 
     // ---- Содержимое ----
 
@@ -423,6 +459,7 @@ public class ModCauldronBlockEntity extends BlockEntity {
     }
 
     public int meltSnow() {
+        if (!isLiquidAllowed(WATER_COMPONENT_ID)) return 0; // на будущее, если вода когда-то попадёт в блэклист
         long snowCount = this.solidSlot.stream().filter(e -> e.typeId().equals(SNOW_COMPONENT_ID)).count();
         if (snowCount == 0) return 0;
 
@@ -469,6 +506,7 @@ public class ModCauldronBlockEntity extends BlockEntity {
     }
 
     public boolean isCooking() {
+        if (totemBrewing != null) return totemBrewing.cooking();
         if (brewing == null) return false;
         if (brewing.soup()) return brewing.stageIndex() == 0;
         CauldronRecipe recipe = CauldronRecipeLoader.get(brewing.recipeId());
@@ -487,6 +525,371 @@ public class ModCauldronBlockEntity extends BlockEntity {
         return brewing != null && brewing.soup() && brewing.stageIndex() == 1;
     }
 
+
+    /**
+     * true, если у рецепта нет поля "ritual" (условие не задано), либо структура блоков вокруг
+     * котла реально собрана прямо сейчас. Кешируется на {@link #RITUAL_CHECK_INTERVAL_TICKS}
+     * тиков — обход блоков в мире на каждый тик был бы избыточно дорог, раз проверка идёт
+     * только во время активной варки (cook/await), а не постоянно.
+     */
+    private boolean isRitualSatisfied(CauldronRecipe recipe) {
+        if (recipe.ritual().isEmpty()) return true;
+        if (ritualCheckCooldown > 0) {
+            ritualCheckCooldown--;
+            return cachedRitualSatisfied;
+        }
+        ritualCheckCooldown = RITUAL_CHECK_INTERVAL_TICKS;
+
+        List<RitualTemplate> templates = new ArrayList<>();
+        for (Identifier id : recipe.ritual()) {
+            RitualTemplate template = CauldronRitualTemplateLoader.get(id);
+            if (template == null) {
+                cachedRitualSatisfied = false;
+                cachedRitualPositions = List.of();
+                return false;
+            }
+            templates.add(template);
+        }
+        if (level == null) {
+            cachedRitualSatisfied = false;
+            cachedRitualPositions = List.of();
+            return false;
+        }
+
+        var result = RitualTemplate.matchComposite(templates, level, worldPosition);
+        cachedRitualSatisfied = result.isPresent();
+        cachedRitualPositions = result.orElse(List.of());
+        return cachedRitualSatisfied;
+    }
+
+
+    /**
+     * Запускает поглощение блоков для всех правил рецепта, у которых {@code stageIndex}
+     * совпадает с {@code completingStageIndex} ({@code -1} — сентинел "рецепт завершается
+     * целиком", используется в finishBrewing). Несколько правил на один триггер — каждое
+     * независимо кидает свою кость на chance.
+     */
+    private void triggerBlockConsumption(CauldronRecipe recipe, int completingStageIndex) {
+        if (!(level instanceof ServerLevel)) return;
+        for (BlockConsumptionRule rule : recipe.blockConsumption()) {
+            boolean triggersHere = rule.stageIndex()
+                    .map(idx -> idx == completingStageIndex)
+                    .orElse(completingStageIndex == -1);
+            if (!triggersHere) continue;
+            if (level.getRandom().nextFloat() >= rule.chance()) continue;
+            if (rule.resultPool().isEmpty()) continue;
+
+            List<BlockPos> area = resolveConsumptionArea(rule);
+            if (area.isEmpty()) continue;
+
+            List<BlockPos> shuffled = new ArrayList<>(area);
+            java.util.Collections.shuffle(shuffled, new java.util.Random(level.getRandom().nextLong()));
+            int limit = Math.min(rule.maxBlocks(), shuffled.size());
+
+            for (BlockPos pos : shuffled.subList(0, limit)) {
+                consumptionQueue.addLast(new ConsumptionEntry(pos, rule.resultPool()));
+            }
+            consumptionCooldown = 0; // первый блок обработается на ближайшем tickBlockConsumption
+        }
+    }
+
+    private List<BlockPos> resolveConsumptionArea(BlockConsumptionRule rule) {
+        if (rule.area().isEmpty()) {
+            return cachedRitualPositions; // область не задана явно — последняя успешно сматченная область ritual-условия рецепта
+        }
+        if (level == null) return List.of();
+
+        List<RitualTemplate> templates = new ArrayList<>();
+        for (Identifier id : rule.area()) {
+            RitualTemplate template = CauldronRitualTemplateLoader.get(id);
+            if (template == null) return List.of(); // один из шаблонов area невалиден — вся area невалидна
+            templates.add(template);
+        }
+        return RitualTemplate.matchComposite(templates, level, worldPosition).orElse(List.of());
+    }
+
+    /**
+     * Тикает очередь поглощения (вызывается КАЖДЫЙ серверный тик из ModCauldronBlock.serverTick,
+     * независимо от состояния варки — очередь должна доработать даже если варка уже завершилась
+     * или была прервана). Каждые CONSUMPTION_STEP_TICKS обрабатывает один блок: если он всё ещё
+     * физически на месте — сначала эффект разрушения, спустя CONSUMPTION_PLACEMENT_DELAY_TICKS —
+     * замена на случайный блок из пула с эффектом установки. Если блока там уже нет — тихий
+     * пропуск (см. Q3), очередь просто идёт дальше.
+     */
+    public void tickBlockConsumption() {
+        if (!(level instanceof ServerLevel serverLevel)) return;
+
+        if (consumptionAwaitingPlacementPos != null) {
+            if (--consumptionPlacementDelay <= 0) {
+                BlockPos pos = consumptionAwaitingPlacementPos;
+                Identifier resultId = consumptionAwaitingPlacementBlock;
+                consumptionAwaitingPlacementPos = null;
+                consumptionAwaitingPlacementBlock = null;
+                placeConsumptionResult(serverLevel, pos, resultId);
+            }
+            return; // пока не разместили текущий результат — очередь дальше не двигаем
+        }
+
+        if (consumptionQueue.isEmpty()) return;
+        if (consumptionCooldown > 0) {
+            consumptionCooldown--;
+            return;
+        }
+        consumptionCooldown = CONSUMPTION_STEP_TICKS;
+
+        ConsumptionEntry entry = consumptionQueue.poll();
+        BlockPos pos = entry.pos();
+        BlockState oldState = level.getBlockState(pos);
+        if (oldState.isAir()) return; // блока уже нет — тихий пропуск, шаг сгорел впустую
+
+        // Эффект разрушения старого блока — ванильный "block break" (партиклы + звук), сразу
+        serverLevel.levelEvent(2001, pos, net.minecraft.world.level.block.Block.getId(oldState));
+
+        List<Identifier> pool = entry.pool();
+        Identifier resultId = pool.get(level.getRandom().nextInt(pool.size()));
+        consumptionAwaitingPlacementPos = pos;
+        consumptionAwaitingPlacementBlock = resultId;
+        consumptionPlacementDelay = CONSUMPTION_PLACEMENT_DELAY_TICKS;
+    }
+
+    private void placeConsumptionResult(ServerLevel serverLevel, BlockPos pos, Identifier resultId) {
+        boolean toAir = resultId.equals(AIR_ID);
+        if (!toAir && serverLevel.getBlockState(pos).isAir()) return; // за 2 тика ожидания блок уже кто-то убрал
+
+        BlockState newState;
+        if (toAir) {
+            newState = net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+        } else {
+            net.minecraft.world.level.block.Block block = net.minecraft.core.registries.BuiltInRegistries.BLOCK.getValue(resultId);
+            newState = block != null ? block.defaultBlockState() : net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+        }
+
+        serverLevel.setBlockAndUpdate(pos, newState);
+        if (!newState.isAir()) {
+            net.minecraft.world.level.block.SoundType soundType = newState.getSoundType();
+            serverLevel.playSound(null, pos, soundType.getPlaceSound(),
+                    net.minecraft.sounds.SoundSource.BLOCKS, soundType.getVolume(), soundType.getPitch());
+        }
+    }
+
+    // Тотемы
+    public boolean isTotemBrewing() {
+        return totemBrewing != null;
+    }
+
+    @Nullable
+    public TotemBrewingState getTotemBrewing() {
+        return totemBrewing;
+    }
+
+    /**
+     * true, если можно запустить варку тотема прямо сейчас: твёрдый стек однороден по group
+     * (material) и все записи имеют ОДИНАКОВЫЙ уровень (totem_solid_component_level); если
+     * есть жидкость — она тоже обязана быть одного уровня (totem_liquid_component_level),
+     * совпадающего с твёрдым.
+     */
+    public boolean canStartTotem() {
+        if (isBrewing() || isTotemBrewing()) return false;
+        if (solidSlot.isEmpty() || solidSlot.size() != MAX_STACK_SIZE) return false;
+        if (liquidLayers.isEmpty() || liquidLayers.size() != MAX_STACK_SIZE)
+            return false; // ФИКС: жидкость теперь ОБЯЗАТЕЛЬНА (3/3), а не пропускалась молча при пустом стеке
+
+        String material = null;
+        Integer level = null;
+        for (SolidEntry entry : solidSlot) {
+            SolidComponentType type = CauldronSolidComponentLoader.get(entry.typeId());
+            var levelDef = com.idk.biomegetter.block.custom.cauldron.data.totem.CauldronTotemSolidLevelLoader.get(entry.typeId());
+            if (type == null || levelDef == null) return false;
+            if (material == null) material = type.group();
+            else if (!material.equals(type.group())) return false;
+            if (level == null) level = levelDef.level();
+            else if (!level.equals(levelDef.level())) return false;
+        }
+
+        for (LiquidLayer layer : liquidLayers) {
+            if (!(layer instanceof LiquidLayer.Liquid liquid)) return false;
+            var levelDef = com.idk.biomegetter.block.custom.cauldron.data.totem.CauldronTotemLiquidLevelLoader.get(liquid.typeId());
+            if (levelDef == null || levelDef.level() != level) return false;
+        }
+
+        // ФИКС: стартовое кольцо никогда не проверялось — canStartTotem смотрел только на
+        // состав котла, полностью игнорируя структуру вокруг него.
+        if (level == null || this.level == null) return false;
+        return findMatchingStartRing(level) != null;
+    }
+
+    /**
+     * Ищет ПЕРВОЕ зарегистрированное стартовое кольцо нужного уровня, реально построенное
+     * вокруг котла прямо сейчас — если несколько разных колец одного уровня описывают разную
+     * форму, побеждает первое найденное по порядку (детерминированный, но зависящий от
+     * загрузки файловой системы выбор — как и было оговорено для менее критичных случаев).
+     */
+    @Nullable
+    private TotemStartRing findMatchingStartRing(int requiredLevel) {
+        for (var entry : CauldronTotemStartRingLoader.all().entrySet()) {
+            var ring = entry.getValue();
+            if (ring.level() != requiredLevel) continue;
+            if (ring.template().match(this.level, worldPosition).isPresent()) return ring;
+        }
+        return null;
+    }
+
+    public void startTotemBrewing() {
+        if (!canStartTotem()) return;
+        String material = CauldronSolidComponentLoader.get(solidSlot.get(0).typeId()).group();
+        int level = com.idk.biomegetter.block.custom.cauldron.data.totem.CauldronTotemSolidLevelLoader
+                .get(solidSlot.get(0).typeId()).level();
+
+        var startRing = findMatchingStartRing(level);
+        if (startRing != null) {
+            var matchOpt = startRing.template().match(this.level, worldPosition);
+            matchOpt.ifPresent(positions -> {
+                if (this.level instanceof ServerLevel serverLevel) {
+                    for (BlockPos pos : positions) {
+                        serverLevel.levelEvent(2001, pos, net.minecraft.world.level.block.Block.getId(serverLevel.getBlockState(pos)));
+                        serverLevel.setBlockAndUpdate(pos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState());
+                    }
+                }
+            });
+        }
+
+        this.solidSlot.clear();
+        this.liquidLayers.clear();
+        var cfg = com.idk.biomegetter.block.custom.cauldron.data.totem.TotemProcessLoader.get();
+        this.totemBrewing = new TotemBrewingState(material, level, 0, true, cfg.cookDurationTicks(), level,
+                List.of(), java.util.Optional.empty(), java.util.Optional.empty(), Map.of(), 0);
+        this.setChanged();
+        syncToClient();
+    }
+
+    /**
+     * Вызывается ModCauldronBlock ПОСЛЕ обычного addSolid/applyLiquidContact, пока идёт варка
+     * тотема — фиксирует id как потенциальный тег-источник для текущего этапа.
+     */
+    public void noteTotemIngredient(Identifier componentId) {
+        if (totemBrewing == null || totemBrewing.cooking()) return; // во время cook-фазы докидывать нельзя
+        List<Identifier> collected = new ArrayList<>(totemBrewing.collectedTags());
+        collected.add(componentId);
+        this.totemBrewing = new TotemBrewingState(totemBrewing.material(), totemBrewing.level(), totemBrewing.stage(),
+                totemBrewing.cooking(), totemBrewing.ticksRemaining(),
+                totemBrewing.ritualBudgetRemaining(), collected, totemBrewing.forcedSkill(),
+                totemBrewing.chosenPassiveSkill(), totemBrewing.passiveStats(), totemBrewing.emptyStageCount());
+    }
+
+    /**
+     * Клик готовым тотемом по котлу во время сборки — форсирует скилл, если его теги подходят.
+     */
+    public void showTotemForForcedSkill(Identifier skillId) {
+        if (totemBrewing == null) return;
+        this.totemBrewing = new TotemBrewingState(totemBrewing.material(), totemBrewing.level(), totemBrewing.stage(),
+                totemBrewing.cooking(), totemBrewing.ticksRemaining(),
+                totemBrewing.ritualBudgetRemaining(), totemBrewing.collectedTags(), java.util.Optional.of(skillId),
+                totemBrewing.chosenPassiveSkill(), totemBrewing.passiveStats(), totemBrewing.emptyStageCount());
+    }
+
+    public void tryAdvanceTotemStage() {
+        if (totemBrewing == null || level == null || totemBrewing.cooking()) return;
+
+        java.util.Set<String> tags = new java.util.HashSet<>();
+        for (Identifier id : totemBrewing.collectedTags()) {
+            var solidType = CauldronSolidComponentLoader.get(id);
+            var liquidType = CauldronLiquidComponentLoader.get(id);
+            if (solidType != null) tags.addAll(solidType.tags());
+            if (liquidType != null) tags.addAll(liquidType.tags());
+        }
+
+        boolean isPassiveStage = totemBrewing.stage() == 0;
+
+        java.util.Map<Identifier, com.idk.biomegetter.block.custom.cauldron.data.totem.TotemSkill> candidates = new java.util.LinkedHashMap<>();
+        for (String tag : tags) {
+            var matches = isPassiveStage
+                    ? com.idk.biomegetter.block.custom.cauldron.data.totem.CauldronTotemPassiveSkillLoader.byTag(tag)
+                    : com.idk.biomegetter.block.custom.cauldron.data.totem.CauldronTotemActiveSkillLoader.byTag(tag);
+            for (var entry : matches) candidates.put(entry.getKey(), entry.getValue());
+        }
+
+        BiomeGetter.LOGGER.info("ModCauldromBlockEntity Totem stage {} advance: collectedTags(ids)={}, resolvedTags={}, candidates={}",
+                isPassiveStage ? "PASSIVE" : "ACTIVE", totemBrewing.collectedTags(), tags, candidates.keySet());
+
+        Identifier chosenId = null;
+        if (totemBrewing.forcedSkill().isPresent() && candidates.containsKey(totemBrewing.forcedSkill().get())) {
+            chosenId = totemBrewing.forcedSkill().get();
+        } else if (!candidates.isEmpty()) {
+            List<Identifier> ids = new ArrayList<>(candidates.keySet());
+            chosenId = ids.get(level.getRandom().nextInt(ids.size()));
+        }
+        BiomeGetter.LOGGER.info("ModCauldromBlockEntity Totem stage {} chose: {}", isPassiveStage ? "PASSIVE" : "ACTIVE", chosenId);
+
+        var chosenSkill = chosenId != null ? candidates.get(chosenId) : null;
+
+        var appliedRings = com.idk.biomegetter.block.custom.cauldron.data.totem.TotemStatRingResolver.resolve(
+                level, worldPosition, totemBrewing.ritualBudgetRemaining(), level.getRandom());
+        int spent = appliedRings.stream().mapToInt(r -> r.ring().level()).sum();
+
+        java.util.Set<String> cauldronElements = new java.util.HashSet<>(); // см. известное упрощение — не заполняется пока
+        Map<String, Float> stats = chosenSkill != null ? chosenSkill.computedStats(appliedRings, cauldronElements) : Map.of();
+        int newEmptyCount = totemBrewing.emptyStageCount() + (chosenSkill == null ? 1 : 0);
+
+        // Поглощаем ВСЁ, что физически лежит в котле, НЕЗАВИСИМО от того, найден скилл или
+        // нет — согласованное правило: "нашли — используем, не нашли — ничего страшного, всё
+        // равно поглощаем".
+        this.solidSlot.clear();
+        this.liquidLayers.clear();
+
+
+        if (isPassiveStage) {
+            var cfg = com.idk.biomegetter.block.custom.cauldron.data.totem.TotemProcessLoader.get();
+            this.totemBrewing = new TotemBrewingState(totemBrewing.material(), totemBrewing.level(), 1,
+                    true, cfg.cookDurationTicks(), // переходим во вторую cook-фазу перед сборкой активки
+                    totemBrewing.ritualBudgetRemaining() - spent, List.of(), java.util.Optional.empty(),
+                    chosenId != null ? java.util.Optional.of(chosenId) : java.util.Optional.empty(), stats, newEmptyCount);
+        } else {
+            finishTotemBrewing(chosenId, stats, newEmptyCount);
+        }
+        this.setChanged();
+        syncToClient();
+    }
+
+    private void finishTotemBrewing(@Nullable Identifier activeSkillId, Map<String, Float> activeStats, int emptyStageCount) {
+        if (totemBrewing == null) return;
+        int baseDurability = 20 + totemBrewing.level() * 30;
+        int compensatedDurability = Math.round(baseDurability * (1.0f + 0.25f * emptyStageCount));
+
+        boolean hasPassive = totemBrewing.chosenPassiveSkill().isPresent();
+        ItemStack result = com.idk.biomegetter.item.custom.TotemItem.build(
+                totemBrewing.material(), totemBrewing.level(),
+                hasPassive ? totemBrewing.chosenPassiveSkill().get() : Identifier.fromNamespaceAndPath("minecraft", "air"),
+                totemBrewing.passiveStats(),
+                activeSkillId != null ? activeSkillId : Identifier.fromNamespaceAndPath("minecraft", "air"),
+                activeStats,
+                compensatedDurability, compensatedDurability
+        );
+        this.totemBrewing = null;
+
+        // Тотем выпадает АВТОМАТИЧЕСКИ, как булыжник при реакции лавы с водой — не нужно
+        // забирать его отдельным кликом.
+        if (level != null) {
+            net.minecraft.world.level.block.Block.popResource(level, worldPosition, result);
+        }
+    }
+
+    @Nullable
+    private ItemStack pendingTotemResult;
+
+    public boolean hasPendingTotemResult() {
+        return pendingTotemResult != null;
+    }
+
+    @Nullable
+    public ItemStack collectTotemResult() {
+        if (pendingTotemResult == null) return null;
+        ItemStack result = pendingTotemResult.copy();
+        pendingTotemResult = null;
+        this.setChanged();
+        syncToClient();
+        return result;
+    }
+
     // ---- Запуск обычного (JSON) рецепта ----
 
     public void startBrewing(Identifier recipeId, @Nullable Entity consumedEntity) {
@@ -501,6 +904,7 @@ public class ModCauldronBlockEntity extends BlockEntity {
                     consumedEntity.getX(), consumedEntity.getY() + 0.5, consumedEntity.getZ(), 20, 0.3, 0.5, 0.3, 0.05);
             consumedEntity.discard();
         }
+        this.ritualCheckCooldown = 0; // форсируем немедленную проверку на первом же tickBrewing после старта
         CauldronRecipeStage firstStage = recipe.stages().get(0);
         int initialRounds = firstStage instanceof CauldronRecipeStage.CollectOpenStage ? 1 : 0;
         this.brewing = new BrewingState(recipeId, 0, firstStageTicks(firstStage), 0, List.of(), initialRounds, false, false, false);
@@ -586,6 +990,31 @@ public class ModCauldronBlockEntity extends BlockEntity {
         return CauldronSoupIngredientLoader.get(componentId) != null;
     }
 
+    /**
+     * Гейт улучшения котла — некоторые жидкости (лава, в будущем помеченные тегом
+     * "unstable_magic") можно налить/иметь ТОЛЬКО в улучшенном котле (см.
+     * CauldronUpgradeBlacklistLoader). На улучшенном котле (обычный ModCauldronBlock, не
+     * ModCauldronBlockBasic) — всегда true. Неизвестный тип жидкости (нет
+     * liquid_component-файла) трактуется КОНСЕРВАТИВНО как запрещённый — fail-safe на случай,
+     * если для какой-то опасной жидкости (например лавы) забыли завести JSON-файл.
+     */
+    public boolean isLiquidAllowed(Identifier liquidTypeId) {
+        boolean isBasic = getBlockState().getBlock() instanceof com.idk.biomegetter.block.custom.ModCauldronBlockBasic;
+        if (!isBasic) {
+//            BiomeGetter.LOGGER.info("isLiquidAllowed({}): block is NOT ModCauldronBlockBasic (actual class: {}) -> allowed",
+//                    liquidTypeId, getBlockState().getBlock().getClass().getSimpleName());
+            return true;
+        }
+        LiquidComponentType type = CauldronLiquidComponentLoader.get(liquidTypeId);
+        if (type == null) {
+//            BiomeGetter.LOGGER.info("isLiquidAllowed({}): no liquid_component found -> denied (fail-safe)", liquidTypeId);
+            return false;
+        }
+        boolean blacklisted = CauldronUpgradeBlacklistLoader.isBlacklisted(type);
+//        BiomeGetter.LOGGER.info("isLiquidAllowed({}): group={}, tags={}, blacklisted={} -> {}",
+//                liquidTypeId, type.group(), type.tags(), blacklisted, !blacklisted);
+        return !blacklisted;
+    }
     // ---- Перемешивание ----
 
     public void tryAdvanceAwaitStage() {
@@ -680,6 +1109,7 @@ public class ModCauldronBlockEntity extends BlockEntity {
     }
 
     private void advanceToNextStage(CauldronRecipe recipe) {
+        triggerBlockConsumption(recipe, brewing.stageIndex());
         int nextIndex = brewing.stageIndex() + 1;
         if (nextIndex >= recipe.stages().size()) {
             finishBrewing(recipe);
@@ -694,6 +1124,7 @@ public class ModCauldronBlockEntity extends BlockEntity {
     }
 
     private void finishBrewing(CauldronRecipe recipe) {
+        triggerBlockConsumption(recipe, -1);
         if (recipe.resultLiquid().isPresent()) {
             Identifier resultId = recipe.resultLiquid().get();
             for (int i = 0; i < recipe.resultCount(); i++) this.liquidLayers.add(new LiquidLayer.Liquid(resultId));
@@ -886,6 +1317,18 @@ public class ModCauldronBlockEntity extends BlockEntity {
         );
     }
 
+    /**
+     * "Магический" фоновый эффект — endern-партиклы внутри котла, показывающий, что варится
+     * что-то мистическое, независимо от наличия/отсутствия честной жидкостной текстуры.
+     * Управляется флагом magic_effect в JSON (CauldronRecipe для обычных рецептов,
+     * TotemProcessConfig для тотема) — по умолчанию выключен для рецептов, включён для тотема.
+     */
+    private void spawnMagicParticles(ServerLevel serverLevel) {
+        serverLevel.sendParticles(net.minecraft.core.particles.ParticleTypes.PORTAL,
+                worldPosition.getX() + 0.5, worldPosition.getY() + 0.7, worldPosition.getZ() + 0.5,
+                2, 0.25, 0.15, 0.25, 0.0);
+    }
+
     public void tickBrewing() {
         if (brewing == null || !(level instanceof ServerLevel serverLevel)) return;
 
@@ -899,7 +1342,17 @@ public class ModCauldronBlockEntity extends BlockEntity {
             this.brewing = null;
             return;
         }
-        if (!recipe.conditions().isSatisfied(this)) return;
+        if (recipe.magicEffect() && level instanceof ServerLevel) {
+            spawnMagicParticles((ServerLevel) level);
+        }
+        if (!recipe.conditions().isSatisfied(this) || !isRitualSatisfied(recipe)) {
+            if (level instanceof ServerLevel && serverLevel.getGameTime() % 30 == 0) {
+                serverLevel.sendParticles(net.minecraft.core.particles.ParticleTypes.ANGRY_VILLAGER,
+                        worldPosition.getX() + 0.5, worldPosition.getY() + 0.3, worldPosition.getZ() + 0.5,
+                        3, 0.25, 0.1, 0.25, 0.0);
+            }
+            return; // пауза — партиклы стадии не идут, время не тикает, но раз в секунду шлём angry_villager как сигнал
+        }
 
         CauldronRecipeStage stage = recipe.stages().get(brewing.stageIndex());
 
@@ -924,6 +1377,48 @@ public class ModCauldronBlockEntity extends BlockEntity {
 
         if (stage instanceof CauldronRecipeStage.CollectOpenStage collect) {
             tickIdlePhases(serverLevel, collect.idlePhases(), false);
+        }
+    }
+
+    public void tickTotemBrewing() {
+        if (totemBrewing == null || !(level instanceof ServerLevel serverLevel)) return;
+
+        if (TotemProcessLoader.get().magicEffect()) {
+            spawnMagicParticles(serverLevel);
+        }
+
+        if (totemBrewing.cooking()) {
+            if (serverLevel.getGameTime() % 5 == 0) {
+                serverLevel.sendParticles(net.minecraft.core.particles.ParticleTypes.END_ROD,
+                        worldPosition.getX() + 0.5, worldPosition.getY() + 0.9, worldPosition.getZ() + 0.5,
+                        3, 0.2, 0.1, 0.2, 0.0);
+            }
+            int remaining = totemBrewing.ticksRemaining() - 1;
+            if (remaining <= 0) {
+                this.totemBrewing = new TotemBrewingState(totemBrewing.material(), totemBrewing.level(), totemBrewing.stage(),
+                        false, com.idk.biomegetter.block.custom.cauldron.data.totem.TotemProcessLoader.get().awaitTimeoutTicks(),
+                        totemBrewing.ritualBudgetRemaining(), totemBrewing.collectedTags(), totemBrewing.forcedSkill(),
+                        totemBrewing.chosenPassiveSkill(), totemBrewing.passiveStats(), totemBrewing.emptyStageCount());
+            } else {
+                this.totemBrewing = new TotemBrewingState(totemBrewing.material(), totemBrewing.level(), totemBrewing.stage(),
+                        true, remaining,
+                        totemBrewing.ritualBudgetRemaining(), totemBrewing.collectedTags(), totemBrewing.forcedSkill(),
+                        totemBrewing.chosenPassiveSkill(), totemBrewing.passiveStats(), totemBrewing.emptyStageCount());
+            }
+            return;
+        }
+
+        // await-фаза: истечение таймаута = провал варки (аналог evaporateFailedBrew для обычных рецептов)
+        int remaining = totemBrewing.ticksRemaining() - 1;
+        if (remaining <= 0) {
+            this.totemBrewing = null;
+            this.setChanged();
+            syncToClient();
+        } else {
+            this.totemBrewing = new TotemBrewingState(totemBrewing.material(), totemBrewing.level(), totemBrewing.stage(),
+                    false, remaining,
+                    totemBrewing.ritualBudgetRemaining(), totemBrewing.collectedTags(), totemBrewing.forcedSkill(),
+                    totemBrewing.chosenPassiveSkill(), totemBrewing.passiveStats(), totemBrewing.emptyStageCount());
         }
     }
 
@@ -1027,6 +1522,46 @@ public class ModCauldronBlockEntity extends BlockEntity {
             output.putBoolean("BrewSpiceUsed", this.brewing.spiceUsed());
             output.putBoolean("BrewSoup", this.brewing.soup());
         }
+        // ---- Очередь "поглощения" блоков (см. BlockConsumptionRule) ----
+        if (!this.consumptionQueue.isEmpty()) {
+            output.putString("ConsumptionQueue", encodeConsumptionQueue(this.consumptionQueue));
+        }
+        output.putInt("ConsumptionCooldown", this.consumptionCooldown);
+        if (this.consumptionAwaitingPlacementPos != null) {
+            output.putString("ConsumptionAwaitingPos", encodePositions(List.of(this.consumptionAwaitingPlacementPos)));
+        }
+        if (this.consumptionAwaitingPlacementBlock != null) {
+            output.putString("ConsumptionAwaitingBlock", this.consumptionAwaitingPlacementBlock.toString());
+        }
+        output.putInt("ConsumptionPlacementDelay", this.consumptionPlacementDelay);
+
+    }
+
+    private static String encodeConsumptionQueue(Iterable<ConsumptionEntry> entries) {
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (ConsumptionEntry entry : entries) {
+            if (!first) sb.append('|');
+            sb.append(entry.pos().getX()).append(',').append(entry.pos().getY()).append(',').append(entry.pos().getZ())
+                    .append(':').append(encodeIdentifiers(entry.pool()));
+            first = false;
+        }
+        return sb.toString();
+    }
+
+    private List<ConsumptionEntry> decodeConsumptionQueue(String encoded) {
+        List<ConsumptionEntry> result = new ArrayList<>();
+        if (encoded.isEmpty()) return result;
+        for (String token : encoded.split("\\|")) {
+            if (token.isEmpty()) continue;
+            String[] parts = token.split(":", 2);
+            if (parts.length != 2) continue;
+            String[] coords = parts[0].split(",");
+            if (coords.length != 3) continue;
+            BlockPos pos = new BlockPos(Integer.parseInt(coords[0]), Integer.parseInt(coords[1]), Integer.parseInt(coords[2]));
+            result.add(new ConsumptionEntry(pos, decodeIdentifiers(parts[1])));
+        }
+        return result;
     }
 
     @Override
@@ -1068,6 +1603,18 @@ public class ModCauldronBlockEntity extends BlockEntity {
                     );
                 })
                 .orElse(null);
+        this.consumptionQueue.clear();
+        input.getString("ConsumptionQueue").ifPresent(encoded -> this.consumptionQueue.addAll(decodeConsumptionQueue(encoded)));
+        this.consumptionCooldown = input.getIntOr("ConsumptionCooldown", 0);
+        this.consumptionAwaitingPlacementPos = input.getString("ConsumptionAwaitingPos")
+                .map(this::decodePositions)
+                .filter(list -> !list.isEmpty())
+                .map(list -> list.get(0))
+                .orElse(null);
+        this.consumptionAwaitingPlacementBlock = input.getString("ConsumptionAwaitingBlock")
+                .map(Identifier::parse)
+                .orElse(null);
+        this.consumptionPlacementDelay = input.getIntOr("ConsumptionPlacementDelay", 0);
     }
 
     private static String encodeLiquidLayers(List<LiquidLayer> layers) {
@@ -1167,6 +1714,48 @@ public class ModCauldronBlockEntity extends BlockEntity {
             sb.append(entries.get(i).typeId());
         }
         return sb.toString();
+    }
+
+
+    private static String encodePositions(Iterable<BlockPos> positions) {
+        StringBuilder sb = new StringBuilder();
+        boolean first = true;
+        for (BlockPos pos : positions) {
+            if (!first) sb.append(';');
+            sb.append(pos.getX()).append(',').append(pos.getY()).append(',').append(pos.getZ());
+            first = false;
+        }
+        return sb.toString();
+    }
+
+    private List<BlockPos> decodePositions(String encoded) {
+        List<BlockPos> result = new ArrayList<>();
+        if (encoded.isEmpty()) return result;
+        for (String token : encoded.split(";")) {
+            if (token.isEmpty()) continue;
+            String[] parts = token.split(",");
+            if (parts.length != 3) continue;
+            result.add(new BlockPos(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]), Integer.parseInt(parts[2])));
+        }
+        return result;
+    }
+
+    private static String encodeIdentifiers(List<Identifier> ids) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < ids.size(); i++) {
+            if (i > 0) sb.append(';');
+            sb.append(ids.get(i));
+        }
+        return sb.toString();
+    }
+
+    private List<Identifier> decodeIdentifiers(String encoded) {
+        List<Identifier> result = new ArrayList<>();
+        if (encoded.isEmpty()) return result;
+        for (String token : encoded.split(";")) {
+            if (!token.isEmpty()) result.add(Identifier.parse(token));
+        }
+        return result;
     }
 
     private static List<SolidEntry> decodeSolidSlot(String encoded) {

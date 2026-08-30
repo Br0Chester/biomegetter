@@ -73,7 +73,7 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
     }
 
     @Override
-    public MapCodec<ModCauldronBlock> codec() {
+    public MapCodec<? extends ModCauldronBlock> codec() {
         return CODEC;
     }
 
@@ -167,7 +167,7 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
         // 2. Наполнение ведром — реактивно (см. applyLiquidContact в BE). Whitelist
         //    (isIngredientAllowed) действует только во время сбора ингредиентов супа.
         Identifier liquidTypeId = CauldronLiquidComponentLoader.getIdByPourBucketItem(item);
-        if (liquidTypeId != null && cauldron.isIngredientAllowed(liquidTypeId)) {
+        if (liquidTypeId != null && cauldron.isIngredientAllowed(liquidTypeId) && cauldron.isLiquidAllowed(liquidTypeId)) {
             LiquidComponentType type = CauldronLiquidComponentLoader.get(liquidTypeId);
             if (!level.isClientSide()) {
                 int burned = cauldron.applyLiquidContact(liquidTypeId, 3);
@@ -178,7 +178,7 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
             return InteractionResult.SUCCESS;
         }
 
-        if (item == Items.LAVA_BUCKET) {
+        if (item == Items.LAVA_BUCKET && cauldron.isLiquidAllowed(BiomeGetter.id("lava"))) {
             if (!level.isClientSide()) {
                 int burned = cauldron.applyLiquidContact(BiomeGetter.id("lava"), 3);
                 level.playSound(null, pos, burned > 0 ? SoundEvents.FIRE_EXTINGUISH : SoundEvents.BUCKET_EMPTY_LAVA, SoundSource.BLOCKS, 1.0F, 1.0F);
@@ -206,7 +206,8 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
 
         // 3b. Бутылка воды — наливает 1 слой воды (реактивно, как и вёдра). Whitelist
         //     действует только во время сбора ингредиентов супа.
-        if (isWaterBottle(itemStack) && cauldron.isIngredientAllowed(ModCauldronBlockEntity.WATER_COMPONENT_ID)) {
+        if (isWaterBottle(itemStack) && cauldron.isIngredientAllowed(ModCauldronBlockEntity.WATER_COMPONENT_ID)
+                && cauldron.isLiquidAllowed(ModCauldronBlockEntity.WATER_COMPONENT_ID)) {
             if (!level.isClientSide()) {
                 int burned = cauldron.applyLiquidContact(BiomeGetter.id("water"), 1);
                 level.playSound(null, pos, SoundEvents.BOTTLE_EMPTY, SoundSource.BLOCKS, 1.0F, 1.0F);
@@ -248,7 +249,7 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
             if (spiceId != null) {
                 if (!level.isClientSide()) {
                     boolean used = cauldron.useSpice(spiceId);
-                    BiomeGetter.LOGGER.info("Cauldron soup: spice {} matched item {}, useSpice()={}", spiceId, item, used);
+//                    BiomeGetter.LOGGER.info("Cauldron soup: spice {} matched item {}, useSpice()={}", spiceId, item, used);
                     if (used) {
                         level.playSound(null, pos, SoundEvents.HONEY_BLOCK_PLACE, SoundSource.BLOCKS, 1.0F, 1.0F); // TODO: подобрать звук под специю
                         if (!player.getAbilities().instabuild) itemStack.shrink(1);
@@ -266,6 +267,7 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
             if (type != null && itemStack.getCount() >= type.inputCount()) {
                 boolean handled = tryAddSolidOrRejectBurning(level, pos, cauldron, type.group(), () -> {
                     cauldron.addSolid(solidTypeId);
+                    if (cauldron.isTotemBrewing()) cauldron.noteTotemIngredient(solidTypeId);
                     level.playSound(null, pos, type.placeSound(), SoundSource.BLOCKS, 1.0F, 1.0F);
                     if (type.returnsEmptyBucket()) {
                         swapItem(player, hand, itemStack, new ItemStack(Items.BUCKET));
@@ -274,6 +276,27 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
                     }
                 });
                 if (handled) return InteractionResult.SUCCESS;
+            }
+        }
+
+        // 7. Тотем: во время сборки соответствующего этапа — форсирует скилл (тотем НЕ тратится);
+        // если варка завершена — забирает результат.
+        if (item == com.idk.biomegetter.item.ModItems.TOTEM) {
+            if (cauldron.hasPendingTotemResult()) {
+                if (!level.isClientSide()) {
+                    ItemStack result = cauldron.collectTotemResult();
+                    if (result != null && !player.getInventory().add(result)) player.drop(result, false);
+                }
+                return InteractionResult.SUCCESS;
+            }
+            if (cauldron.isTotemBrewing()) {
+                if (!level.isClientSide()) {
+                    var skillId = cauldron.getTotemBrewing() != null && cauldron.getTotemBrewing().stage() == 0
+                            ? com.idk.biomegetter.item.custom.TotemItem.getPassiveSkillId(itemStack)
+                            : com.idk.biomegetter.item.custom.TotemItem.getActiveSkillId(itemStack);
+                    skillId.ifPresent(cauldron::showTotemForForcedSkill);
+                }
+                return InteractionResult.SUCCESS;
             }
         }
 //        else if (cauldron.isCollectingIngredients()) {
@@ -340,6 +363,15 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
             return InteractionResult.PASS;
         }
 
+        if (cauldron.hasPendingTotemResult()) {
+            ItemStack result = cauldron.collectTotemResult();
+            if (!level.isClientSide() && result != null) {
+                level.playSound(null, pos, SoundEvents.TOTEM_USE, SoundSource.BLOCKS, 1.0F, 1.0F);
+                if (!player.getInventory().add(result)) player.drop(result, false);
+            }
+            return InteractionResult.SUCCESS;
+        }
+
         if (player.isShiftKeyDown()) {
             ItemStack extracted = cauldron.extractTopSolid();
             if (extracted == null) {
@@ -367,8 +399,10 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
                 // варится автоматически — мешать нечего
             } else if (cauldron.isAwaitingIngredient()) {
                 cauldron.tryAdvanceCurrentStage();
-            } else if (cauldron.canStartSoup()) {
-                cauldron.startSoupBrewing();
+            } else if (cauldron.isTotemBrewing()) {
+                cauldron.tryAdvanceTotemStage();
+            } else if (cauldron.canStartTotem()) {
+                cauldron.startTotemBrewing();
             } else {
                 logStirredState(pos, cauldron);
                 Identifier recipeId = CauldronRecipeLoader.findMatching(level, pos, cauldron);
@@ -438,6 +472,7 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
         }
 
         if (precipitation == Biome.Precipitation.RAIN) {
+            if (!cauldron.isLiquidAllowed(BiomeGetter.id("water"))) return;
             int burned = cauldron.applyLiquidContact(BiomeGetter.id("water"), 1);
             level.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(state));
             dropCobblestone(level, pos, burned);
@@ -463,12 +498,12 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
             return;
         }
 
-        int burned;
-        if (fluid == Fluids.LAVA) {
-            burned = cauldron.applyLiquidContact(BiomeGetter.id("lava"), 3);
-        } else {
-            burned = cauldron.applyLiquidContact(BiomeGetter.id("water"), 1);
+        Identifier dripTypeId = fluid == Fluids.LAVA ? BiomeGetter.id("lava") : BiomeGetter.id("water");
+        if (!cauldron.isLiquidAllowed(dripTypeId)) {
+            return; // тихий отказ — базовый котёл структурно не может принять эту жидкость даже с дрипстона
         }
+
+        int burned = cauldron.applyLiquidContact(dripTypeId, fluid == Fluids.LAVA ? 3 : 1);
         level.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(state));
         level.levelEvent(1047, pos, 0);
         dropCobblestone(level, pos, burned);
@@ -564,6 +599,8 @@ public class ModCauldronBlock extends AbstractCauldronBlock implements EntityBlo
         cauldron.setLightLevel(level.getMaxLocalRawBrightness(pos));
 
         cauldron.tickBrewing();
+        cauldron.tickTotemBrewing();
+        cauldron.tickBlockConsumption();
 
         if (cauldron.isHeatedBelow() && cauldron.isPowderSnowAbove() && cauldron.tickMelt()) {
             level.setBlockAndUpdate(pos.above(), Blocks.WATER.defaultBlockState());

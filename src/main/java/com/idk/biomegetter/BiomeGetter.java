@@ -6,7 +6,11 @@ import com.idk.biomegetter.block.custom.cauldron.data.*;
 import com.idk.biomegetter.creativemodetab.ModCreativeModeTabs;
 import com.idk.biomegetter.datagen.ModBlockTagsProvider;
 import com.idk.biomegetter.entity.ModEntities;
+import com.idk.biomegetter.fluid.ModFluidConfigLoader;
+import com.idk.biomegetter.fluid.ModFluids;
 import com.idk.biomegetter.item.ModItems;
+import com.idk.biomegetter.skill.BuiltinSkillEffects;
+import com.idk.biomegetter.skill.PlayerPassiveBuffCoordinator;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.minecraft.resources.Identifier;
@@ -35,11 +39,22 @@ public class BiomeGetter implements ModInitializer {
         ModCreativeModeTabs.registerModCreativeModeTabs();
         ModEntities.registerModEntityTypes();
         ModEntities.registerAttributes();
+
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new com.idk.biomegetter.block.custom.cauldron.data.totem.CauldronTotemPassiveSkillLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new com.idk.biomegetter.block.custom.cauldron.data.totem.CauldronTotemActiveSkillLoader());
+        BuiltinSkillEffects.registerAll();
+        PlayerPassiveBuffCoordinator.register();
+        com.idk.biomegetter.skill.TemporaryBlockTracker.register();
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new com.idk.biomegetter.block.custom.cauldron.data.totem.TotemProcessLoader());
+
 //        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronJuiceTypeLoader());
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronLiquidReactionLoader());
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronSolidReactionLoader());
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronLiquidComponentLoader());
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronSolidComponentLoader());
+
+        ModFluids.registerModFluids();
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new ModFluidConfigLoader());
 
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronRecipeLoader());
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronSoupSpiceLoader());
@@ -47,7 +62,16 @@ public class BiomeGetter implements ModInitializer {
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronSoupProcessLoader());
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronSoupCategoryLoader());
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronSoupIngredientLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronUpgradeBlacklistLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new CauldronRitualTemplateLoader());
 
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new com.idk.biomegetter.block.custom.cauldron.data.totem.ElementMatrixLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new com.idk.biomegetter.block.custom.cauldron.data.totem.CauldronTotemSolidLevelLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new com.idk.biomegetter.block.custom.cauldron.data.totem.CauldronTotemLiquidLevelLoader());
+
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new com.idk.biomegetter.block.custom.cauldron.data.totem.CauldronTotemStartRingLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new com.idk.biomegetter.block.custom.cauldron.data.totem.CauldronTotemStatRingLoader());
+        ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new com.idk.biomegetter.block.custom.cauldron.data.totem.BlockElementLoader());
     }
 
     public static Identifier id(String path) {

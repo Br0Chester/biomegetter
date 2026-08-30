@@ -13,11 +13,11 @@ public class ModBlockEntities {
     public static final BlockEntityType<ModCauldronBlockEntity> CAULDRON = Registry.register(
             BuiltInRegistries.BLOCK_ENTITY_TYPE,
             Identifier.fromNamespaceAndPath(BiomeGetter.MOD_ID, "cauldron"),
-            FabricBlockEntityTypeBuilder.create((pos, state) -> new ModCauldronBlockEntity(ModBlockEntities.CAULDRON, pos, state), ModBlocks.WATER_CAULDRON).build()
+            FabricBlockEntityTypeBuilder.create((pos, state) -> new ModCauldronBlockEntity(ModBlockEntities.CAULDRON, pos, state), ModBlocks.WATER_CAULDRON, ModBlocks.UPGRADED_CAULDRON).build()
     );
 
     public static void registerModBlockEntities() {
         BiomeGetter.LOGGER.info("Registered Mod Block Entities for " + BiomeGetter.MOD_ID);
     }
-    
+
 }

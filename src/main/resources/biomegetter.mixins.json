@@ -4,8 +4,12 @@
   "compatibilityLevel": "JAVA_25",
   "mixins": [
     "ExampleMixin",
+    "FluidFogColorMixin",
+    "FluidSprintSlowdownMixin",
+    "FluidSwimResistanceMixin",
     "GrindstoneMenuMixin",
-    "GrindstoneMenuSlot0Mixin"
+    "GrindstoneMenuSlot0Mixin",
+    "LivingEntitySwimEffectMixin"
   ],
   "injectors": {
     "defaultRequire": 1

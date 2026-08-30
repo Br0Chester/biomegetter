@@ -10,5 +10,9 @@
   "block.biomegetter.deepslate_biome_ore": ":3",
   "block.biomegetter.water_cauldron": "Water cauldron",
   "creativemodetab.biomegetter.biomes_stick": "Biome getter items",
-  "creativemodetab.biomegetter.biomes_blocks": "BG blocks"
+  "creativemodetab.biomegetter.biomes_blocks": "BG blocks",
+  "totem.biomegetter.passive_label": "Passive: ",
+  "totem.biomegetter.active_label": "Active: ",
+  "totem.skill.ender_sight": "Ender Sight",
+  "totem.skill.basic_strike": "Basic Strike"
 }
